@@ -52,6 +52,13 @@ function TcFields({ tc, usCodes, idp }: { tc?: typeof testCases.$inferSelect; us
             <option value="edge">Edge</option>
           </select>
         </label>
+        <label htmlFor={`${idp}-kind`} className="field" style={{ flex: 1 }}>
+          Kiểm thử
+          <select id={`${idp}-kind`} name="kind" defaultValue={tc?.kind ?? "ui"}>
+            <option value="ui">Giao diện</option>
+            <option value="api">API</option>
+          </select>
+        </label>
         <label htmlFor={`${idp}-prio`} className="field" style={{ flex: 1 }}>
           Ưu tiên
           <select id={`${idp}-prio`} name="priority" defaultValue={tc?.priority ?? "medium"}>
@@ -113,6 +120,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/st
           </span>
         </span>
         <span className="inline">
+          {tc.kind === "api" && <span className="tag">API</span>}
           <span className={`pill ${TYPE_CLASS[tc.type]}`}>{TYPE_LABEL[tc.type]}</span>
           {tc.source === "ai" ? <span className="pill p-ai">AI</span> : <span className="tag">Thủ công</span>}
         </span>

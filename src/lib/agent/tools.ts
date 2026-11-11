@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { insertWithNextSeq } from "../seq";
 import type { DB } from "../db";
-import { bugs, builds, executions, memberships, projects, questions, stories, testCases, userStories, type Env, type ExecStatus, type Severity } from "../db/schema";
+import { apiCalls, bugs, builds, executions, memberships, projects, questions, stories, testCases, userStories, type Env, type ExecStatus, type Severity } from "../db/schema";
 import { can, type Perm } from "../rbac";
 import { audit } from "../audit";
 import { roleIn } from "../services/projects";
@@ -153,7 +153,7 @@ export const TOOLS: Tool[] = [
         environment: ENV_LABEL[env],
         environmentUrl: p.envUrls[env] ?? null,
         note: "Tài khoản test không được gửi qua đây; lấy từ trình quản lý mật khẩu của máy.",
-        testCases: rows.map(({ e, tc }) => ({ executionId: e.id, code: tcCode(tc.seq), title: tc.title, preconditions: tc.preconditions, steps: tc.steps, currentStatus: e.status })),
+        testCases: rows.map(({ e, tc }) => ({ executionId: e.id, code: tcCode(tc.seq), kind: tc.kind === "api" ? "api" : "ui", title: tc.title, preconditions: tc.preconditions, steps: tc.steps, currentStatus: e.status })),
       };
     },
   },
@@ -175,6 +175,7 @@ export const TOOLS: Tool[] = [
       const row = await execFor(db, auth, str(args.executionId, "executionId"));
       const status = String(args.status) as ExecStatus;
       if (!["passed", "failed", "blocked"].includes(status)) throw new Error("status phải là passed, failed hoặc blocked.");
+      await db.update(executions).set({ agentSource: "antigravity" }).where(eq(executions.id, row.e.id));
       await setExecution(db, auth.user.id, row.e.id, { status, notes: typeof args.notes === "string" ? args.notes : undefined, linkedIssueKey: typeof args.linkedIssueKey === "string" ? args.linkedIssueKey : null }, { byAgent: true });
       await audit(db, { userId: auth.user.id, action: `Agent ghi ${status} ${tcCode(row.tc.seq)}`, target: `${row.s.jiraKey} ${row.b.name}`, source: "mcp" });
       return { ok: true, next: status === "failed" ? "Gọi draft_bug với executionId này để tạo nháp bug." : undefined };
@@ -234,6 +235,56 @@ export const TOOLS: Tool[] = [
         fields: { title: str(args.title, "title"), steps: String(args.steps ?? ""), actual: String(args.actual ?? ""), expected: String(args.expected ?? ""), severity, env: row.b.env },
       });
       return { draftBug: bugCode({ id, jiraKey: null }), note: "Nháp đang chờ QC duyệt trong tool. Có thể gọi upload_evidence với bugKey này." };
+    },
+  },
+  {
+    name: "record_api_calls",
+    description: "Ghi lại các lời gọi API quan sát được (hoặc tự gọi) khi chạy một test case; hiện ở mục API của lần thực thi.",
+    write: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        executionId: { type: "string" },
+        calls: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              method: { type: "string" },
+              url: { type: "string" },
+              status: { type: "integer", description: "Mã HTTP; bỏ trống nếu lỗi mạng" },
+              durationMs: { type: "integer" },
+              requestBody: { type: "string" },
+              responseBody: { type: "string" },
+            },
+            required: ["method", "url"],
+          },
+        },
+      },
+      required: ["executionId", "calls"],
+    },
+    async run(db, auth, args) {
+      const row = await execFor(db, auth, str(args.executionId, "executionId"));
+      const list = (Array.isArray(args.calls) ? (args.calls as Record<string, unknown>[]) : []).slice(0, 100);
+      const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 2000) : null);
+      const existing = await db.select({ id: apiCalls.id }).from(apiCalls).where(eq(apiCalls.executionId, row.e.id));
+      if (list.length)
+        await db.insert(apiCalls).values(
+          list.map((c, i) => ({
+            executionId: row.e.id,
+            seq: existing.length + i,
+            source: "agent" as const,
+            method: String(c.method ?? "GET").toUpperCase().slice(0, 10),
+            url: String(c.url ?? "").slice(0, 1000),
+            status: Number.isInteger(c.status) ? (c.status as number) : null,
+            durationMs: Number.isInteger(c.durationMs) ? (c.durationMs as number) : null,
+            requestBody: text(c.requestBody),
+            responseBody: text(c.responseBody),
+            error: null,
+          })),
+        );
+      await audit(db, { userId: auth.user.id, action: `Agent ghi ${list.length} lời gọi API`, target: `${row.s.jiraKey} ${tcCode(row.tc.seq)}`, source: "mcp" });
+      return { saved: list.length };
     },
   },
   {

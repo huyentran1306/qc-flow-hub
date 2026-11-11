@@ -12,7 +12,7 @@ import { discover, type SsoConfig } from "../sso";
 export const CONNECTION_FIELDS: Record<ConnectionKind, { config: string[]; secretLabel: string }> = {
   jira: { config: ["baseUrl", "flavor", "email"], secretLabel: "API token / PAT" },
   testlink: { config: ["url", "authorLogin"], secretLabel: "API key" },
-  gemini: { config: ["model"], secretLabel: "API key" },
+  gemini: { config: ["model", "baseUrl"], secretLabel: "API key" },
   slack: { config: ["channel"], secretLabel: "Incoming webhook URL" },
   git: { config: ["provider"], secretLabel: "Webhook secret" },
   sso: { config: ["issuer", "clientId", "label"], secretLabel: "Client secret" },
@@ -71,7 +71,7 @@ export async function loadTestLink(db: DB): Promise<TestLinkClient | null> {
 export async function loadAi(db: DB): Promise<AiClient | null> {
   const r = await loadRaw(db, "gemini");
   if (!r || !r.config.model) return null;
-  return geminiClient(r.secret, r.config.model);
+  return geminiClient(r.secret, r.config.model, r.config.baseUrl || undefined);
 }
 
 /** Runs a live check against the system and stores the result. */
@@ -88,7 +88,7 @@ export async function checkConnection(db: DB, userId: string, kind: ConnectionKi
       await (await loadTestLink(db))!.checkDevKey();
       message = "API key hợp lệ";
     } else if (kind === "gemini") {
-      await pingGemini(r.secret, r.config.model);
+      await pingGemini(r.secret, r.config.model, r.config.baseUrl || undefined);
       message = `Model ${r.config.model} phản hồi bình thường`;
     } else if (kind === "slack") {
       await postWebhookMessage(r.secret, "QA Flow Hub: kiểm tra kết nối thành công.");

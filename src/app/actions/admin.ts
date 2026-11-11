@@ -5,6 +5,7 @@ import { runAndReturn } from "@/lib/flash";
 import { saveConnection, checkConnection, CONNECTION_FIELDS } from "@/lib/services/connections";
 import { createProject, parseProjectForm, updateProject } from "@/lib/services/projects";
 import { createUser, setAdmin, setDisabled, setMembership } from "@/lib/services/users";
+import { saveAccountsFromForm } from "@/lib/services/testAccounts";
 import { ROLES, type ConnectionKind, type Role } from "@/lib/db/schema";
 
 // Derived from the field map so a new connection kind can never be forgotten here.
@@ -54,6 +55,7 @@ export async function updateProjectAction(fd: FormData) {
     const { db, user } = await actorFor("admin.projects");
     const input = parseProjectForm(fd);
     await updateProject(db, user.id, String(fd.get("id")), input);
+    await saveAccountsFromForm(db, user.id, String(fd.get("id")), fd);
     return `Đã lưu dự án ${input.key}.`;
   });
 }

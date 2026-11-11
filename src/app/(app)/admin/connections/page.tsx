@@ -111,6 +111,10 @@ export default async function ConnectionsPage({ searchParams }: PageProps<"/admi
             Model <span className="hint">ví dụ gemini-3.5-flash; xem danh sách model trong AI Studio</span>
             <input id="gm-model" name="model" defaultValue={g.model ?? "gemini-3.5-flash"} required />
           </label>
+          <label className="full" htmlFor="gm-base">
+            Base URL <span className="hint">để trống; chỉ điền khi công ty đi qua proxy hoặc gateway riêng</span>
+            <input id="gm-base" name="baseUrl" defaultValue={g.baseUrl ?? ""} placeholder="https://generativelanguage.googleapis.com" />
+          </label>
         </Shell>
       </div>
       <div className="grid3">

@@ -68,6 +68,8 @@ export const projects = pgTable("projects", {
   gateRules: jsonb("gate_rules").$type<GateRules>().notNull().default(defaultGateRules),
   bugStatusMap: jsonb("bug_status_map").$type<BugStatusMap>().notNull().default(defaultBugStatusMap),
   envUrls: jsonb("env_urls").$type<Partial<Record<Env, string>>>().notNull().default({}),
+  // {dev:{username,password},…} encrypted with APP_SECRET; passwords never leave the server.
+  testAccountsEnc: text("test_accounts_enc"),
   createdAt: createdAt(),
 });
 
@@ -174,6 +176,7 @@ export const questions = pgTable("questions", {
 export type TcStep = { action: string; expected: string };
 export type TcType = "happy" | "negative" | "edge";
 export type TcPriority = "high" | "medium" | "low";
+export type TcKind = "ui" | "api";
 
 export const testCases = pgTable(
   "test_cases",
@@ -184,6 +187,7 @@ export const testCases = pgTable(
   usCode: text("us_code").notNull(),
   title: text("title").notNull(),
   type: text("type").$type<TcType>().notNull(),
+  kind: text("kind").$type<TcKind>().notNull().default("ui"),
   priority: text("priority").$type<TcPriority>().notNull(),
   preconditions: text("preconditions").notNull().default(""),
   steps: jsonb("steps").$type<TcStep[]>().notNull().default([]),
@@ -228,6 +232,7 @@ export const executions = pgTable(
     blockerDone: boolean("blocker_done").notNull().default(false),
     notes: text("notes").notNull().default(""),
     byAgent: boolean("by_agent").notNull().default(false),
+    agentSource: text("agent_source").$type<"antigravity" | "auto">(),
     reviewed: boolean("reviewed").notNull().default(true), // agent results start unreviewed
     executedBy: text("executed_by").references(() => users.id, { onDelete: "set null" }),
     executedAt: timestamp("executed_at", { withTimezone: true }),
@@ -280,6 +285,7 @@ export type ReportCounts = {
   openBugs: { key: string; title: string; severity: Severity }[];
   closedBugs: number;
   blockers: string[];
+  api?: { total: number; failed: number; failures: { tc: string; method: string; url: string; status: number | null }[] };
 };
 
 export const reports = pgTable("reports", {
@@ -292,6 +298,46 @@ export const reports = pgTable("reports", {
   postedBy: text("posted_by").references(() => users.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type AutoRunStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+
+export const autoRuns = pgTable("auto_runs", {
+  id: id(),
+  buildId: text("build_id").notNull().references(() => builds.id, { onDelete: "cascade" }),
+  status: text("status").$type<AutoRunStatus>().notNull().default("queued"),
+  total: integer("total").notNull().default(0),
+  done: integer("done").notNull().default(0),
+  passed: integer("passed").notNull().default(0),
+  failed: integer("failed").notNull().default(0),
+  blocked: integer("blocked").notNull().default(0),
+  current: text("current"),
+  log: jsonb("log").$type<string[]>().notNull().default([]),
+  error: text("error"),
+  options: jsonb("options").$type<{ headed: boolean; rerun: boolean }>().notNull().default({ headed: false, rerun: false }),
+  startedBy: text("started_by").references(() => users.id, { onDelete: "set null" }),
+  startedAt: createdAt(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
+/** HTTP calls observed or made while running a test case: the "API result" of the case. */
+export const apiCalls = pgTable(
+  "api_calls",
+  {
+    id: id(),
+    executionId: text("execution_id").notNull().references(() => executions.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    source: text("source").$type<"ui" | "api" | "agent">().notNull(), // seen in the page, called directly, or sent by Antigravity
+    method: text("method").notNull(),
+    url: text("url").notNull(),
+    status: integer("status"), // null = network error
+    durationMs: integer("duration_ms"),
+    requestBody: text("request_body"),
+    responseBody: text("response_body"),
+    error: text("error"),
+    at: createdAt(),
+  },
+  (t) => [index("api_calls_exec").on(t.executionId)],
+);
 
 export const gateEvents = pgTable("gate_events", {
   id: id(),

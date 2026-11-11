@@ -49,7 +49,8 @@ const TC_SYSTEM = `Bạn là QC senior. Viết test case bằng tiếng Việt c
 - Mỗi bước có hành động cụ thể và kết quả mong đợi kiểm chứng được.
 - requirementRef ghi mã AC (ví dụ AC-3) hoặc mã câu hỏi (ví dụ Q2) nếu có.
 - Không lặp lại các test case đã có (danh sách được cung cấp).
-- Điểm nào chưa rõ thì đưa vào openQuestions thay vì tự đoán.`;
+- Điểm nào chưa rõ thì đưa vào openQuestions thay vì tự đoán.
+- Nếu requirement có API (endpoint, mã trạng thái, dữ liệu trả về), viết thêm test case kind = "api": mỗi bước ghi rõ METHOD và đường dẫn, kết quả mong đợi ghi mã HTTP và nội dung chính.`;
 
 const TC_SCHEMA = {
   type: Type.OBJECT,
@@ -62,6 +63,7 @@ const TC_SCHEMA = {
           us: { type: Type.STRING },
           title: { type: Type.STRING },
           type: { type: Type.STRING, enum: ["happy", "negative", "edge"] },
+          kind: { type: Type.STRING, enum: ["ui", "api"], description: "api nếu test case kiểm tra trực tiếp một API (method, đường dẫn, mã trạng thái)" },
           priority: { type: Type.STRING, enum: ["high", "medium", "low"] },
           preconditions: { type: Type.STRING },
           requirementRef: { type: Type.STRING },
@@ -83,7 +85,7 @@ const TC_SCHEMA = {
 };
 
 type TcResult = {
-  testCases: { us: string; title: string; type: TcType; priority: TcPriority; preconditions?: string; requirementRef?: string; steps: TcStep[] }[];
+  testCases: { us: string; title: string; type: TcType; kind?: "ui" | "api"; priority: TcPriority; preconditions?: string; requirementRef?: string; steps: TcStep[] }[];
   openQuestions: string[];
 };
 
@@ -159,6 +161,7 @@ ${existing.length ? existing.map((t) => `- [${t.usCode}] ${t.title}`).join("\n")
       usCode: validUs.size && !validUs.has(t.us) ? (us[0]?.code ?? "US1") : t.us || "US1",
       title: t.title.trim(),
       type: (["happy", "negative", "edge"].includes(t.type) ? t.type : "happy") as TcType,
+      kind: (t.kind === "api" ? "api" : "ui") as "ui" | "api",
       priority: (["high", "medium", "low"].includes(t.priority) ? t.priority : "medium") as TcPriority,
       preconditions: t.preconditions ?? "",
       steps: t.steps.map((s) => ({ action: String(s.action ?? ""), expected: String(s.expected ?? "") })),

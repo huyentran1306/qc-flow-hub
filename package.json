@@ -19,6 +19,7 @@
     "fast-xml-parser": "^5.12.0",
     "jose": "^6.2.17",
     "next": "16.4.6",
+    "playwright-core": "^1.65.0",
     "postgres": "^3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",

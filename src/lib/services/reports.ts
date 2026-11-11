@@ -1,7 +1,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Type } from "@google/genai";
 import type { DB } from "../db";
-import { bugs, builds, projects, reports, stories, testCases, type ReportCounts } from "../db/schema";
+import { apiCalls, bugs, builds, projects, reports, stories, testCases, type ReportCounts } from "../db/schema";
+import { tcCode } from "../format";
 import { audit } from "../audit";
 import type { AiClient } from "../integrations/gemini";
 import type { JiraClient } from "../integrations/jira";
@@ -23,7 +24,13 @@ export async function computeCounts(db: DB, buildId: string): Promise<ReportCoun
     .where(and(eq(bugs.storyId, b.storyId), inArray(bugs.status, ["open", "in_progress", "resolved"])));
   const closed = await db.select({ id: bugs.id }).from(bugs).where(and(eq(bugs.storyId, b.storyId), eq(bugs.status, "closed")));
   const blockers = [...new Set(scope.map((t) => latest.get(t.id)).filter((l) => l?.status === "blocked" && l.linkedIssueKey).map((l) => l!.linkedIssueKey!))];
+  const calls = rows.length ? await db.select().from(apiCalls).where(inArray(apiCalls.executionId, rows.map((r) => r.e.id))) : [];
+  const seqOf = new Map(rows.map((r) => [r.e.id, r.tc.seq]));
+  const failures = calls
+    .filter((c) => c.status == null || c.status >= 400)
+    .map((c) => ({ tc: tcCode(seqOf.get(c.executionId) ?? 0), method: c.method, url: (() => { try { const u = new URL(c.url); return u.pathname + u.search; } catch { return c.url; } })(), status: c.status }));
   return {
+    api: { total: calls.length, failed: failures.length, failures: failures.slice(0, 30) },
     build: countStatuses(rows.map((r) => r.e)),
     env: countStatuses(envList),
     byUs: usCodes.map((us) => ({ us, ...countStatuses(envList.filter((x) => x.us === us)) })),
@@ -89,6 +96,7 @@ export function reportText(storyKey: string, summary: string, buildName: string,
     ...c.byUs.map((u) => `- ${u.us}: ${u.passed}/${u.total} passed${u.failed ? `, ${u.failed} failed` : ""}${u.blocked ? `, ${u.blocked} blocked` : ""}`),
     c.openBugs.length ? `Bug còn mở: ${c.openBugs.map((b) => `${b.key} (${SEVERITY_LABEL[b.severity]})`).join(", ")}` : "Không còn bug mở.",
     c.blockers.length ? `Bị chặn bởi: ${c.blockers.join(", ")}` : "",
+    c.api?.total ? `API: ${c.api.total} lời gọi, ${c.api.failed} lỗi${c.api.failed ? ` (${c.api.failures.slice(0, 5).map((f) => `${f.tc} ${f.method} ${f.url} → ${f.status ?? "lỗi mạng"}`).join("; ")})` : ""}` : "",
     "",
     finalText,
   ]

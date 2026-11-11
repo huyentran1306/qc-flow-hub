@@ -17,6 +17,8 @@ export function prepareStandalone(root, distDir, out) {
   cp(path.join(root, "drizzle"), path.join(out, "drizzle"));
   // PGlite loads its .wasm/.data files at runtime; ship the whole package rather than trusting the trace.
   cp(path.join(root, "node_modules", "@electric-sql", "pglite"), path.join(out, "node_modules", "@electric-sql", "pglite"));
+  // Playwright drives the installed Chrome/Edge for automatic runs; it loads files dynamically too.
+  cp(path.join(root, "node_modules", "playwright-core"), path.join(out, "node_modules", "playwright-core"));
   for (const f of fs.readdirSync(out)) if (f.startsWith(".env")) rm(path.join(out, f));
   rm(path.join(out, ".data"));
   rm(path.join(out, "dist"));

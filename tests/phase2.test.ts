@@ -76,7 +76,7 @@ describe("demo seed", () => {
     const sp = await currentSprint(db, s.projectId);
     const board = await boardStories(db, s.projectId, sp!.id);
     const row = board.find((r) => r.jiraKey === "DEMO-110859")!;
-    expect(row).toMatchObject({ tcApproved: 12, tcDraft: 0, qOpen: 1, bugsOpen: 2, bugsVerify: 1, lastBuild: "DEV-R1", usTitles: "View Map deck · Delete Map deck" });
+    expect(row).toMatchObject({ tcApproved: 14, tcDraft: 0, qOpen: 1, bugsOpen: 2, bugsVerify: 1, lastBuild: "DEV-R1", usTitles: "View Map deck · Delete Map deck" });
     expect(board.find((r) => r.jiraKey === "DEMO-110930")).toMatchObject({ tcApproved: 0, bugsOpen: 0, lastBuild: null });
   });
 });

@@ -145,6 +145,35 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
                     <p className="small muted">Không có. Đã đóng {r.counts.closedBugs} bug.</p>
                   )}
                   {r.counts.blockers.length > 0 && <p className="small">Bị chặn bởi: {r.counts.blockers.join(", ")}</p>}
+                  {r.counts.api && r.counts.api.total > 0 && (
+                    <>
+                      <h3>
+                        Kết quả API ({r.counts.api.total} lời gọi, {r.counts.api.failed} lỗi)
+                      </h3>
+                      {r.counts.api.failed ? (
+                        <div className="tbl-wrap">
+                          <table>
+                            <tbody>
+                              {r.counts.api.failures.map((f, i) => (
+                                <tr key={i}>
+                                  <td className="key">{f.tc}</td>
+                                  <td className="mono small">{f.method}</td>
+                                  <td className="small" style={{ wordBreak: "break-all" }}>
+                                    {f.url}
+                                  </td>
+                                  <td>
+                                    <span className={`pill ${f.status == null || f.status >= 500 ? "p-fail" : "p-block"}`}>{f.status ?? "lỗi mạng"}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="small muted">Mọi lời gọi API đều thành công.</p>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="card aiz">
                   <h2>

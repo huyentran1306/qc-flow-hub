@@ -53,7 +53,8 @@ Acceptance criteria:
 export async function seedDemo(db: DB, userId: string): Promise<string> {
   let [p] = await db.select().from(projects).where(eq(projects.key, "DEMO"));
   if (!p) {
-    [p] = await db.insert(projects).values({ key: "DEMO", name: "Dự án mẫu", isDemo: true }).returning();
+    // Relative URL: resolved against the address the tool is opened at, so the sample app works on any port.
+    [p] = await db.insert(projects).values({ key: "DEMO", name: "Dự án mẫu", isDemo: true, envUrls: { dev: "/demo-app", stg: "/demo-app", prod: "/demo-app" } }).returning();
   }
   await db.insert(memberships).values({ userId, projectId: p.id, role: "lead" }).onConflictDoNothing();
   const now = new Date();
@@ -73,7 +74,7 @@ export async function seedDemo(db: DB, userId: string): Promise<string> {
   return p.key;
 }
 
-type DemoTc = [string, TcType, TcPriority, string, string, [string, string][]];
+type DemoTc = [string, TcType, TcPriority, string, string, [string, string][], ("ui" | "api")?];
 const MAPDECK_TCS: DemoTc[] = [
   ["US1", "happy", "high", "Hiển thị danh sách Map deck đủ 4 cột", "User có quyền View, có ≥ 25 Map deck", [["Vào menu Map deck", "Danh sách có cột Tên, Người tạo, Ngày cập nhật, Số layer"]]],
   ["US1", "happy", "medium", "Phân trang 20 dòng mỗi trang", "Có 45 Map deck", [["Mở danh sách", "Trang 1 có 20 dòng, tổng 3 trang"], ["Bấm trang 3", "Hiển thị 5 dòng"]]],
@@ -87,6 +88,8 @@ const MAPDECK_TCS: DemoTc[] = [
   ["US2", "happy", "medium", "Xoá nhiều Map deck cùng lúc", "", [["Chọn 3 deck, bấm Xoá", "Popup ghi “Xoá 3 Map deck”"], ["Xác nhận", "Cả 3 deck biến khỏi danh sách"]]],
   ["US2", "negative", "high", "User chỉ có quyền View không thấy nút Xoá", "User chỉ có quyền View", [["Mở danh sách", "Không có nút Xoá"]]],
   ["US2", "edge", "low", "Mất mạng khi xoá thì báo lỗi, dữ liệu giữ nguyên", "", [["Ngắt mạng, bấm Xoá → Xác nhận", "Toast lỗi, deck vẫn còn"]]],
+  ["US1", "happy", "high", "API tìm kiếm không phân biệt hoa thường", "", [["GET /demo-app/api/mapdecks?q=hanoi", "HTTP 200, items có Map deck “Hanoi Traffic”"]], "api"],
+  ["US2", "negative", "medium", "API xoá Map deck không tồn tại trả 404", "", [["DELETE /demo-app/api/mapdecks/khong-ton-tai", "HTTP 404 kèm thông báo lỗi “không tồn tại”"]], "api"],
 ];
 
 /** Sample run for DEMO-110859: approved test cases, a finished DEV round 1 with failures, blockers and bugs. */
@@ -106,7 +109,7 @@ async function seedMapDeckRun(db: DB, userId: string) {
   ]);
   const tcs = await db
     .insert(testCases)
-    .values(MAPDECK_TCS.map(([us, type, priority, title, pre, steps], i) => ({ storyId: s.id, seq: i + 1, usCode: us, type, priority, title, preconditions: pre, steps: steps.map(([action, expected]) => ({ action, expected })), source: "ai" as const, status: "approved" as const, createdBy: userId, approvedBy: userId })))
+    .values(MAPDECK_TCS.map(([us, type, priority, title, pre, steps, kind], i) => ({ storyId: s.id, seq: i + 1, usCode: us, type, kind: kind ?? "ui", priority, title, preconditions: pre, steps: steps.map(([action, expected]) => ({ action, expected })), source: "ai" as const, status: "approved" as const, createdBy: userId, approvedBy: userId })))
     .returning();
   const [b] = await db.insert(builds).values({ storyId: s.id, env: "dev", round: 1, name: "DEV-R1", createdBy: userId }).returning();
   const result: Record<number, ["passed" | "failed" | "blocked" | "not_run", string | null, string]> = {
@@ -115,6 +118,8 @@ async function seedMapDeckRun(db: DB, userId: string) {
     9: ["failed", null, "Popup xác nhận chung, không có cảnh báo chia sẻ"],
     11: ["blocked", "DEMO-22222", "API phân quyền chưa xong"],
     12: ["not_run", null, ""],
+    13: ["not_run", null, ""],
+    14: ["not_run", null, ""],
   };
   const now = new Date();
   const execs = await db

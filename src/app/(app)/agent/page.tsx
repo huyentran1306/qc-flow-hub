@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { auditLogs, builds, executions, stories, testCases, users } from "@/lib/db/schema";
+import { auditLogs, autoRuns, builds, executions, stories, testCases, users } from "@/lib/db/schema";
 import { requireUser, currentProjectContext } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { listBugs } from "@/lib/services/bugs";
@@ -53,6 +53,14 @@ export default async function AgentPage({ searchParams }: PageProps<"/agent">) {
     .where(inArray(auditLogs.action, ["AI phân tích requirement", "AI sinh test case"]))
     .orderBy(desc(auditLogs.at))
     .limit(10);
+  const runs = await db
+    .select({ r: autoRuns, b: builds, s: stories })
+    .from(autoRuns)
+    .innerJoin(builds, eq(builds.id, autoRuns.buildId))
+    .innerJoin(stories, eq(stories.id, builds.storyId))
+    .where(eq(stories.projectId, pid))
+    .orderBy(desc(autoRuns.startedAt))
+    .limit(8);
   const total = byStory.size + draftBugs.length + pendingExec.length;
   const canApprove = can(actor, "tc.approve");
 
@@ -134,6 +142,25 @@ export default async function AgentPage({ searchParams }: PageProps<"/agent">) {
             )}
           </div>
         </div>
+        <div className="stack">
+        <div className="card">
+          <h2>Chạy tự động gần đây</h2>
+          {runs.length === 0 ? (
+            <p className="small muted">Chưa có. Vào một story → Thực thi → Chạy tự động.</p>
+          ) : (
+            <ul className="list small">
+              {runs.map(({ r, b, s: st }) => (
+                <li key={r.id}>
+                  <Link href={`/stories/${st.jiraKey}/run?build=${b.id}#autorun`}>
+                    {st.jiraKey} {b.name}
+                  </Link>{" "}
+                  · {fmtDateTime(r.startedAt)} ·{" "}
+                  {r.status === "running" || r.status === "queued" ? `đang chạy ${r.done}/${r.total}` : r.status === "done" ? `${r.passed} passed, ${r.failed} failed, ${r.blocked} blocked` : r.status === "cancelled" ? "đã huỷ" : `lỗi: ${r.error ?? ""}`}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="card">
           <h2>Nhật ký Antigravity (MCP)</h2>
           {log.length === 0 ? (
@@ -159,6 +186,7 @@ export default async function AgentPage({ searchParams }: PageProps<"/agent">) {
               ))}
             </ul>
           )}
+        </div>
         </div>
       </div>
     </>

@@ -30,7 +30,7 @@ export function stepsToText(steps: TcStep[]): string {
   return steps.map((s) => `${s.action} => ${s.expected}`).join("\n");
 }
 
-export type TcInput = { usCode: string; title: string; type: TcType; priority: TcPriority; preconditions: string; steps: TcStep[] };
+export type TcInput = { usCode: string; title: string; type: TcType; kind?: "ui" | "api"; priority: TcPriority; preconditions: string; steps: TcStep[] };
 
 export function parseTcForm(fd: FormData): TcInput {
   const title = String(fd.get("title") ?? "").trim();
@@ -43,6 +43,7 @@ export function parseTcForm(fd: FormData): TcInput {
     usCode: String(fd.get("usCode") ?? "US1").trim() || "US1",
     title,
     type: ["happy", "negative", "edge"].includes(type) ? type : "happy",
+    kind: fd.get("kind") === "api" ? "api" : "ui",
     priority: ["high", "medium", "low"].includes(priority) ? priority : "medium",
     preconditions: String(fd.get("preconditions") ?? "").trim(),
     steps,

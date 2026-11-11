@@ -19,6 +19,14 @@ Sau khi tạo Admin, ở Sprint board bấm "Tạo dự án mẫu". Story DEMO-1
 12 test case, một round DEV đã chạy (có Failed, Blocked, 2 bug) để thử đủ quy trình:
 Thực thi → Sub-bug (verify, đóng kèm ảnh) → round 2 → Báo cáo → Môi trường và gate.
 
+CHẠY TEST TỰ ĐỘNG
+Ở màn Thực thi của một story, bấm "Chạy tự động". Cần:
+- Đã kết nối Gemini (Quản trị → Kết nối).
+- Máy có Google Chrome (Windows dùng Edge cũng được).
+- Dự án có URL môi trường (Quản trị → Dự án). Dự án mẫu đã trỏ sẵn tới ứng dụng MapDeck mẫu.
+Tick "Hiện cửa sổ trình duyệt" để xem AI thao tác. Kết quả (kèm ảnh và các lời gọi API)
+vào hàng chờ duyệt; QC xem lại rồi bấm Duyệt.
+
 KẾT NỐI ANTIGRAVITY (tuỳ chọn)
 1. Trong tool: Hồ sơ → Tạo token (quyền "Đọc + ghi") → bấm "Copy cấu hình".
 2. Trong Antigravity: mở phần quản lý MCP server, sửa file cấu hình MCP, dán đoạn vừa copy

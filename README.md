@@ -10,6 +10,7 @@ Chức năng:
 - **Sub-bug**: AI viết bug từ TC failed, tạo sub-task trên Jira kèm evidence, đồng bộ trạng thái, gắn commit (Git webhook hoặc nhập tay), verify và đóng kèm evidence đã fix, mở lại.
 - **Báo cáo**: số liệu theo round và tích luỹ theo môi trường, theo User Story, AI viết nhận xét, đăng lên Jira và Slack.
 - **Môi trường và gate**: quy tắc gate theo dự án, kiểm tra tự động, báo dev deploy, vượt gate có lý do (QC Lead), bộ happy case cho Production.
+- **Chạy test tự động (Playwright)**: nút “Chạy tự động” ở màn Thực thi. AI đọc test case, Playwright điều khiển Chrome/Edge có sẵn trên máy, ghi Passed/Failed/Blocked kèm ảnh chụp. Test case loại **API** được gọi thẳng. Mọi lời gọi API (thấy trong trang hoặc gọi trực tiếp) được lưu thành **kết quả API riêng** của từng test case và tổng hợp trong báo cáo. Tài khoản test nhập ở màn Dự án, mật khẩu không bao giờ gửi cho AI. Dự án mẫu chạy trên ứng dụng MapDeck mẫu tại `/demo-app` (có cài sẵn lỗi).
 - **AI Agent / Antigravity**: token MCP cá nhân, MCP server stdio (`packaging/mcp-stdio.mjs`) với 8 tool, hàng chờ duyệt cho mọi thứ AI tạo.
 
 ## Chạy trên máy

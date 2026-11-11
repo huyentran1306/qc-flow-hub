@@ -62,6 +62,6 @@ describe("review fixes", () => {
     ]);
     const seqs = (await db.select({ seq: testCases.seq }).from(testCases).where(eq(testCases.storyId, s.id))).map((x) => x.seq).sort((a, z) => a - z);
     expect(new Set(seqs).size).toBe(seqs.length);
-    expect(seqs.slice(-2)).toEqual([13, 14]);
+    expect(seqs.slice(-2)).toEqual([15, 16]);
   });
 });

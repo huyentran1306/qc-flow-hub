@@ -11,6 +11,15 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { EvidenceList } from "@/components/Evidence";
 import { FilePicker } from "@/components/FilePicker";
 import { createBuildAction, setResultAction, pushResultsAction, refreshBlockersAction, newBugFromExecutionAction, reviewAgentResultsAction } from "@/app/actions/qa";
+import { startAutoRunAction, cancelAutoRunAction } from "@/app/actions/autorun";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { ApiCallList } from "@/components/ApiCalls";
+import { CopyButton } from "@/components/CopyButton";
+import { Icon } from "@/components/Icon";
+import { headers } from "next/headers";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { apiCalls, autoRuns, mcpTokens } from "@/lib/db/schema";
+import { sweepInterrupted } from "@/lib/autorun/runner";
 import type { ExecStatus } from "@/lib/db/schema";
 
 const STATUS_LABEL: Record<ExecStatus, string> = { passed: "Passed", failed: "Failed", blocked: "Blocked", not_run: "Not test" };
@@ -18,7 +27,7 @@ const STATUS_LABEL: Record<ExecStatus, string> = { passed: "Passed", failed: "Fa
 export default async function RunPage({ params, searchParams }: PageProps<"/stories/[key]/run">) {
   const { key } = await params;
   const sp = await searchParams;
-  const { db, data, role, actor, allowed } = await loadStoryPage(key);
+  const { db, user, data, role, actor, allowed } = await loadStoryPage(key);
   const { story, project, testCases } = data;
   if (!allowed) return <div className="flash err">Bạn không thuộc dự án {project.key}.</div>;
   const conns = await listConnections(db);
@@ -37,6 +46,28 @@ export default async function RunPage({ params, searchParams }: PageProps<"/stor
     </>
   );
   const unreviewed = rows.filter((r) => r.e.byAgent && !r.e.reviewed).map((r) => r.e.id);
+  await sweepInterrupted(db);
+  const calls = rows.length ? await db.select().from(apiCalls).where(inArray(apiCalls.executionId, rows.map((r) => r.e.id))).orderBy(apiCalls.seq) : [];
+  const [lastRun] = selected ? await db.select().from(autoRuns).where(eq(autoRuns.buildId, selected.id)).orderBy(desc(autoRuns.startedAt)).limit(1) : [];
+  const running = !!lastRun && (lastRun.status === "running" || lastRun.status === "queued");
+  const h = await headers();
+  const origin = process.env.APP_URL || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+  const envUrlRaw = selected ? project.envUrls[selected.env] : undefined;
+  const envUrl = envUrlRaw ? (envUrlRaw.startsWith("/") ? origin.replace(/\/+$/, "") + envUrlRaw : envUrlRaw) : null;
+  const notRunCount = rows.filter((r) => r.e.status === "not_run").length;
+  const notPassedCount = rows.filter((r) => r.e.status !== "passed").length;
+  const myTokens = await db.select().from(mcpTokens).where(and(eq(mcpTokens.userId, user.id), isNull(mcpTokens.revokedAt)));
+  const lastUsed = myTokens.map((t) => t.lastUsedAt).filter(Boolean).sort().at(-1) ?? null;
+  const agentPrompt = selected
+    ? `Dùng MCP server qa-flow-hub.
+1. Gọi get_build_testcases với storyKey "${story.jiraKey}" để lấy build ${selected.name} và danh sách test case.
+2. Mở trình duyệt tới ${envUrl ?? "<URL môi trường>"}. Với mỗi test case có currentStatus "not_run", làm đúng từng bước và so với kết quả mong đợi. Test case kind "api" thì gọi API trực tiếp thay vì dùng trình duyệt.
+3. Chụp màn hình ở bước kết quả, gọi upload_evidence với executionId của test case.
+4. Ghi các request API đã thấy hoặc đã gọi (method, url, status, phần chính của response) bằng record_api_calls.
+5. Gọi record_execution với status passed / failed / blocked, notes là kết quả thực tế.
+6. Test case failed thì gọi draft_bug (steps, actual, expected).
+Không đóng bug, không sửa dữ liệu ngoài phạm vi test case.`
+    : "";
 
   return (
     <>
@@ -149,6 +180,95 @@ export default async function RunPage({ params, searchParams }: PageProps<"/stor
             )}
           </div>
 
+          <AutoRefresh active={running} />
+          <div className="grid2" id="autorun">
+            <div className="card">
+              <h2>
+                <span className="inline">
+                  <Icon name="play" /> Chạy tự động
+                </span>
+                {running ? (
+                  <span className="inline small">
+                    <span className="livedot" /> Đang chạy {lastRun!.done}/{lastRun!.total}
+                  </span>
+                ) : lastRun ? (
+                  <span className={`pill ${lastRun.status === "done" ? "p-pass" : lastRun.status === "cancelled" ? "p-nr" : "p-fail"}`}>
+                    Lần trước: {lastRun.status === "done" ? `${lastRun.passed}/${lastRun.total} passed` : lastRun.status === "cancelled" ? "đã huỷ" : "lỗi"}
+                  </span>
+                ) : null}
+              </h2>
+              <p className="small muted">
+                AI đọc từng test case, tự mở {process.platform === "win32" ? "Edge/Chrome" : "Chrome"} thao tác trên {envUrl ? <code>{envUrl}</code> : "URL môi trường"}, ghi Passed/Failed kèm ảnh chụp và các lời gọi API. Test case loại API được gọi thẳng, không mở trình duyệt. Kết quả vào hàng chờ QC duyệt.
+              </p>
+              {running ? (
+                <>
+                  <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={lastRun!.total} aria-valuenow={lastRun!.done}>
+                    <span style={{ width: `${(lastRun!.done / Math.max(1, lastRun!.total)) * 100}%` }} />
+                  </div>
+                  {lastRun!.current && <p className="small">Đang chạy: <b>{lastRun!.current}</b></p>}
+                  {canRun && (
+                    <form action={cancelAutoRunAction}>
+                      <input type="hidden" name="key" value={story.jiraKey} />
+                      <input type="hidden" name="runId" value={lastRun!.id} />
+                      <SubmitButton className="btn sm danger">Huỷ lượt chạy</SubmitButton>
+                    </form>
+                  )}
+                </>
+              ) : !envUrl ? (
+                <p className="small" style={{ color: "var(--block)" }}>Dự án chưa có URL môi trường {ENV_LABEL[selected.env]}. Admin nhập ở Quản trị → Dự án và ánh xạ.</p>
+              ) : !conns.gemini ? (
+                <p className="small" style={{ color: "var(--block)" }}>Cần kết nối Gemini để AI đọc test case. Admin nhập ở Quản trị → Kết nối.</p>
+              ) : canRun ? (
+                <form action={startAutoRunAction} className="stack" style={{ gap: 10 }}>
+                  <input type="hidden" name="key" value={story.jiraKey} />
+                  <input type="hidden" name="buildId" value={selected.id} />
+                  <label className="check small">
+                    <input type="checkbox" name="rerun" defaultChecked={notRunCount === 0} /> Chạy lại cả TC Failed / Blocked ({notPassedCount} TC chưa Passed)
+                  </label>
+                  <label className="check small">
+                    <input type="checkbox" name="headed" /> Hiện cửa sổ trình duyệt để xem AI thao tác
+                  </label>
+                  <div>
+                    <SubmitButton className="btn pri" pendingText="Đang khởi động…">
+                      <Icon name="play" size={15} /> {notRunCount ? `Chạy tự động ${notRunCount} TC chưa chạy` : `Chạy lại ${notPassedCount} TC chưa Passed`}
+                    </SubmitButton>
+                  </div>
+                </form>
+              ) : null}
+              {lastRun && lastRun.log.length > 0 && (
+                <details open={running}>
+                  <summary className="small muted" style={{ cursor: "pointer" }}>
+                    Nhật ký lượt chạy {fmtDateTime(lastRun.startedAt)}
+                    {lastRun.error ? ` · ${lastRun.error}` : ""}
+                  </summary>
+                  <pre className="runlog">{lastRun.log.slice(-40).join("\n")}</pre>
+                </details>
+              )}
+            </div>
+            <div className="card aiz">
+              <h2>
+                <span className="ai-label">
+                  <Icon name="sparkles" /> Chạy bằng Antigravity
+                </span>
+                <span className="small muted">{myTokens.length ? (lastUsed ? `token dùng lần cuối ${fmtDateTime(lastUsed)}` : "đã có token, chưa dùng") : "chưa có token"}</span>
+              </h2>
+              <p className="small">
+                Mở Antigravity (đã thêm MCP qa-flow-hub, xem <a href="/profile#mcp">Hồ sơ</a>), dán câu lệnh dưới vào khung chat của agent. Kết quả agent ghi sẽ hiện ở bảng bên dưới với nhãn “Agent”.
+              </p>
+              <pre className="codeblock" style={{ whiteSpace: "pre-wrap", maxHeight: 200 }}>
+                {agentPrompt}
+              </pre>
+              <div className="actions">
+                <CopyButton text={agentPrompt} label="Copy câu lệnh cho Antigravity" />
+                {!myTokens.length && (
+                  <a className="btn" href="/profile#mcp">
+                    Tạo token MCP
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="tbl-wrap">
             <table>
               <thead>
@@ -179,9 +299,10 @@ export default async function RunPage({ params, searchParams }: PageProps<"/stor
                             ))}
                           </ol>
                         </details>
-                        <span className="small muted">
-                          {tc.usCode} · {tc.type}
-                          {e.byAgent && <span className="pill p-ai"> Agent{e.reviewed ? "" : " · chờ duyệt"}</span>}
+                        <span className="chips" style={{ marginTop: 4 }}>
+                          <span className="tag">{tc.usCode}</span>
+                          <span className="tag">{tc.kind === "api" ? "API" : "Giao diện"}</span>
+                          {e.byAgent && <span className="pill p-ai">{e.agentSource === "auto" ? "Tự động" : "Agent"}{e.reviewed ? "" : " · chờ duyệt"}</span>}
                         </span>
                       </td>
                       <td style={{ minWidth: 320 }}>
@@ -214,6 +335,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/stor
                           <span className={`pill ${e.status === "passed" ? "p-pass" : e.status === "failed" ? "p-fail" : e.status === "blocked" ? "p-block" : "p-nr"}`}>{STATUS_LABEL[e.status]}</span>
                         )}
                         <EvidenceList items={files} />
+                        <ApiCallList calls={calls.filter((c) => c.executionId === e.id)} />
                       </td>
                       <td style={{ minWidth: 200 }}>
                         {e.linkedIssueKey && <span className="key">{e.linkedIssueKey}</span>}

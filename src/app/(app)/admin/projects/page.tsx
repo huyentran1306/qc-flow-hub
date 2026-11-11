@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { createProjectAction, updateProjectAction } from "@/app/actions/admin";
+import { readAccounts } from "@/lib/services/testAccounts";
 import { Flash } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
@@ -10,6 +11,7 @@ type P = typeof projects.$inferSelect;
 
 function ProjectFields({ p, idp }: { p?: P; idp: string }) {
   const m = p?.mapping;
+  const accounts = p ? readAccounts(p.testAccountsEnc) : null;
   return (
     <>
       <label htmlFor={`${idp}-key`}>
@@ -61,7 +63,7 @@ function ProjectFields({ p, idp }: { p?: P; idp: string }) {
         <input id={`${idp}-sreo`} name="statusReopened" defaultValue={(p?.bugStatusMap.reopened ?? ["Reopened", "To Do", "Open"]).join(", ")} />
       </label>
       <label htmlFor={`${idp}-udev`}>
-        URL môi trường DEV
+        URL môi trường DEV <span className="hint">dùng cho chạy tự động; được phép dạng /đường-dẫn</span>
         <input id={`${idp}-udev`} name="urlDev" defaultValue={p?.envUrls.dev ?? ""} placeholder="https://dev.app.congty.vn" />
       </label>
       <label htmlFor={`${idp}-ustg`}>
@@ -72,6 +74,22 @@ function ProjectFields({ p, idp }: { p?: P; idp: string }) {
         URL môi trường PRODUCTION
         <input id={`${idp}-uprod`} name="urlProd" defaultValue={p?.envUrls.prod ?? ""} />
       </label>
+      {p && (
+        <div className="full field">
+          <span>
+            Tài khoản test cho chạy tự động <span className="hint">mật khẩu được mã hoá, không gửi cho AI, không hiện lại; để trống mật khẩu để giữ nguyên</span>
+          </span>
+          {(["dev", "stg", "prod"] as const).map((env) => (
+            <div className="inline" key={env}>
+              <span className="tag" style={{ minWidth: 92, justifyContent: "center" }}>
+                {env === "dev" ? "DEV" : env === "stg" ? "STAGING" : "PRODUCTION"}
+              </span>
+              <input name={`acc.${env}.username`} defaultValue={accounts?.[env]?.username ?? ""} placeholder="Tên đăng nhập" aria-label={`Tên đăng nhập ${env}`} />
+              <input name={`acc.${env}.password`} type="password" autoComplete="new-password" placeholder={accounts?.[env]?.password ? "•••••••• (đã lưu)" : "Mật khẩu"} aria-label={`Mật khẩu ${env}`} />
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

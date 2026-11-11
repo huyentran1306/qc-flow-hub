@@ -31,8 +31,8 @@ export function geminiErrorMessage(e: unknown, model: string): string {
   return msg.slice(0, 300);
 }
 
-export function geminiClient(apiKey: string, model: string): AiClient {
-  const ai = new GoogleGenAI({ apiKey });
+export function geminiClient(apiKey: string, model: string, baseUrl?: string): AiClient {
+  const ai = new GoogleGenAI({ apiKey, ...(baseUrl ? { httpOptions: { baseUrl } } : {}) });
   return {
     model,
     async generateJson<T>({ system, prompt, schema }: { system: string; prompt: string; schema: object }) {
@@ -57,8 +57,8 @@ export function geminiClient(apiKey: string, model: string): AiClient {
   };
 }
 
-export async function pingGemini(apiKey: string, model: string): Promise<void> {
-  const ai = new GoogleGenAI({ apiKey });
+export async function pingGemini(apiKey: string, model: string, baseUrl?: string): Promise<void> {
+  const ai = new GoogleGenAI({ apiKey, ...(baseUrl ? { httpOptions: { baseUrl } } : {}) });
   try {
     await ai.models.generateContent({ model, contents: "ping", config: { maxOutputTokens: 5 } });
   } catch (e) {

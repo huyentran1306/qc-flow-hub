@@ -315,3 +315,15 @@ details.tc .body { padding: 14px 16px 18px 50px; display: flex; flex-direction: 
 .execform .rowx { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .execform .rowx input[name="notes"] { flex: 2 1 220px; }
 .execform .rowx input[name="linkedIssueKey"] { flex: 1 1 150px; }
+
+/* auto-run + API results */
+.apicalls { margin-top: 6px; }
+.apicalls > summary { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); list-style: none; }
+.apicalls > summary::-webkit-details-marker { display: none; }
+.apicalls .tbl-wrap { margin-top: 6px; }
+.apicalls td { padding: 7px 10px; }
+.apicalls .codeblock { max-height: 220px; white-space: pre-wrap; word-break: break-all; margin-top: 4px; }
+.runlog { margin: 0; background: var(--side-bg); color: #d6deeb; border-radius: var(--radius-sm); padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; max-height: 260px; overflow: auto; white-space: pre-wrap; }
+.progress { height: 8px; border-radius: 4px; background: var(--sunken); overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--accent); transition: width 0.4s; }
+.livedot { width: 8px; height: 8px; border-radius: 50%; background: var(--pass); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pass) 20%, transparent); display: inline-block; }

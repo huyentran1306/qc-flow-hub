@@ -27,7 +27,7 @@ export function parseProjectForm(fd: FormData): ProjectInput {
   };
   const url = (k: string) => {
     const v = text(k);
-    if (v && !/^https?:\/\//.test(v)) throw new Error(`URL môi trường phải bắt đầu bằng http:// hoặc https:// (${v}).`);
+    if (v && !/^https?:\/\//.test(v) && !v.startsWith("/")) throw new Error(`URL môi trường phải bắt đầu bằng http://, https:// hoặc / (${v}).`);
     return v || undefined;
   };
   return {

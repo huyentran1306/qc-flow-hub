@@ -139,6 +139,11 @@ export async function addEvidence(db: DB, userId: string | null, ownerType: "bug
   return saved;
 }
 
+export async function addEvidenceBuffer(db: DB, userId: string | null, ownerType: "bug" | "bug_fix" | "execution", ownerId: string, name: string, mime: string, data: Buffer) {
+  const storedName = saveUpload(name, data);
+  await db.insert(evidence).values({ ownerType, ownerId, fileName: name, mime: safeMime(mime), size: data.length, storedName, uploadedBy: userId });
+}
+
 export async function evidenceOf(db: DB, ownerType: "bug" | "bug_fix" | "execution", ownerIds: string[]) {
   if (!ownerIds.length) return [];
   return db.select().from(evidence).where(and(eq(evidence.ownerType, ownerType), inArray(evidence.ownerId, ownerIds)));
