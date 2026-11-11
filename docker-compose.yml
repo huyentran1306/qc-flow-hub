@@ -1,0 +1,35 @@
+# Chạy cho cả team trên một server nội bộ:
+#   1. cp .env.example .env  và điền APP_SECRET, APP_URL (vd https://qa-hub.congty.vn), POSTGRES_PASSWORD
+#   2. docker compose up -d --build
+# Dữ liệu: volume "db" (Postgres) và "files" (ảnh/video evidence). Sao lưu cả hai.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: qa_flow_hub
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qa -d qa_flow_hub"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_SECRET: ${APP_SECRET:?Đặt APP_SECRET trong .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://qa:${POSTGRES_PASSWORD}@db:5432/qa_flow_hub
+    ports:
+      - "3000:3000"
+    volumes:
+      - files:/data
+volumes:
+  db:
+  files:

@@ -1,0 +1,48 @@
+QA FLOW HUB - HƯỚNG DẪN CHẠY TRÊN MÁY
+=====================================
+
+Không cần cài Node, database hay Docker. Mọi thứ đã có sẵn trong thư mục này.
+
+MỞ TOOL
+- Windows: bấm đúp  start-windows.bat
+- Mac:     bấm đúp  start-mac.command
+  (Mac chip Apple M1/M2/M3… dùng gói mac-arm64; Mac chip Intel dùng gói mac-x64)
+  Lần đầu Mac có thể báo "không mở được vì không xác minh được nhà phát triển":
+  chuột phải vào start-mac.command → Open → Open. Chỉ cần làm một lần.
+
+Trình duyệt sẽ tự mở trang QA Flow Hub. Lần đầu bạn tạo tài khoản Admin.
+Cửa sổ đen (Terminal / Command Prompt) phải để mở trong lúc dùng tool.
+Muốn tắt tool: đóng cửa sổ đó.
+
+DÙNG THỬ NHANH
+Sau khi tạo Admin, ở Sprint board bấm "Tạo dự án mẫu". Story DEMO-110859 có sẵn
+12 test case, một round DEV đã chạy (có Failed, Blocked, 2 bug) để thử đủ quy trình:
+Thực thi → Sub-bug (verify, đóng kèm ảnh) → round 2 → Báo cáo → Môi trường và gate.
+
+KẾT NỐI ANTIGRAVITY (tuỳ chọn)
+1. Trong tool: Hồ sơ → Tạo token (quyền "Đọc + ghi") → bấm "Copy cấu hình".
+2. Trong Antigravity: mở phần quản lý MCP server, sửa file cấu hình MCP, dán đoạn vừa copy
+   (gộp vào "mcpServers" nếu đã có), lưu lại.
+3. Tool phải đang chạy khi agent làm việc. Kết quả agent ghi và bug agent tạo
+   nằm ở màn "AI Agent" chờ bạn duyệt.
+
+DỮ LIỆU
+- Toàn bộ dữ liệu (tài khoản, story, test case, token đã nhập) nằm trong thư mục "data".
+- Sao lưu: tắt tool rồi copy thư mục "data" đi chỗ khác.
+- Lên bản mới: giải nén bản mới, copy thư mục "data" của bản cũ sang thay thế, rồi mở.
+- Không gửi thư mục "data" cho người khác: trong đó có khoá mã hoá token Jira/TestLink/Gemini.
+
+DÙNG CHUNG VỚI ĐỒNG NGHIỆP (tuỳ chọn)
+Mặc định chỉ máy này truy cập được. Muốn người cùng mạng LAN vào được:
+- Mac: mở Terminal trong thư mục này, chạy:  QFH_SHARE=1 ./runtime/node launcher.mjs
+- Windows: mở Command Prompt trong thư mục này, chạy:  set "QFH_SHARE=1" && runtime\node.exe launcher.mjs
+Người khác mở http://<IP máy bạn>:3000 . Máy bạn phải đang bật tool.
+
+CẬP NHẬT TRẠNG THÁI BUG TỪ JIRA
+Bấm "Đồng bộ Jira" ở Sprint board: trạng thái sub-bug được cập nhật theo Jira,
+bug dev chuyển Resolved sẽ hiện ở mục "Chờ QC verify".
+(Webhook Jira/Git chỉ dùng được khi Jira/GitLab gọi được tới máy này, thường là không.)
+
+LỖI THƯỜNG GẶP
+- Cổng 3000 đang bận: tool tự chọn cổng khác (3001, 3002...), xem địa chỉ in trong cửa sổ đen.
+- Không kết nối được Jira/TestLink: máy phải vào được mạng công ty (VPN nếu làm từ xa).
