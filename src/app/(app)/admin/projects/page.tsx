@@ -43,7 +43,7 @@ function ProjectFields({ p, idp }: { p?: P; idp: string }) {
         <input id={`${idp}-qc`} name="qcSubtaskLabel" defaultValue={m?.qcSubtaskLabel ?? "QC"} />
       </label>
       <label htmlFor={`${idp}-sev`}>
-        Field Severity <span className="hint">dùng ở giai đoạn 2, ví dụ customfield_10045</span>
+        Field Severity <span className="hint">select field trên Jira, ví dụ customfield_10045; để trống nếu không có</span>
         <input id={`${idp}-sev`} name="severityField" defaultValue={m?.severityField ?? ""} />
       </label>
       <label htmlFor={`${idp}-env`}>

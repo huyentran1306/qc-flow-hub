@@ -4,7 +4,7 @@ import { projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/session";
 import { listUsersWithRoles } from "@/lib/services/users";
 import { ROLE_LABEL } from "@/lib/rbac";
-import { inviteUserAction, setRoleAction, toggleAdminAction, toggleDisabledAction } from "@/app/actions/admin";
+import { inviteUserAction, resetPasswordAction, setRoleAction, toggleAdminAction, toggleDisabledAction } from "@/app/actions/admin";
 import { Flash } from "@/components/Flash";
 import { SubmitButton } from "@/components/SubmitButton";
 
@@ -87,6 +87,18 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                     <span className={`pill ${u.disabled ? "p-fail" : "p-pass"}`}>{u.disabled ? "Đã khoá" : "Hoạt động"}</span>
                     {u.id !== me.id && <SubmitButton className="btn sm">{u.disabled ? "Mở khoá" : "Khoá"}</SubmitButton>}
                   </form>
+                  {u.id !== me.id && (
+                    <details style={{ marginTop: 6 }}>
+                      <summary className="small" style={{ cursor: "pointer", color: "var(--accent)" }}>
+                        Đặt lại mật khẩu
+                      </summary>
+                      <form action={resetPasswordAction} className="inline" style={{ marginTop: 6 }}>
+                        <input type="hidden" name="userId" value={u.id} />
+                        <input name="password" type="text" minLength={8} autoComplete="off" placeholder="Mật khẩu tạm" aria-label={`Mật khẩu tạm cho ${u.name}`} required />
+                        <SubmitButton className="btn sm">Lưu</SubmitButton>
+                      </form>
+                    </details>
+                  )}
                 </td>
               </tr>
             ))}

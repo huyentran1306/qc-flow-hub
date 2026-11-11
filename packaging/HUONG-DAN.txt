@@ -1,6 +1,8 @@
 QA FLOW HUB - HƯỚNG DẪN CHẠY TRÊN MÁY
 =====================================
 
+Hướng dẫn đầy đủ có hình: mở file HUONG-DAN-SU-DUNG.html bằng trình duyệt.
+
 Không cần cài Node, database hay Docker. Mọi thứ đã có sẵn trong thư mục này.
 
 MỞ TOOL

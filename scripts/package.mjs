@@ -53,6 +53,7 @@ async function nodeRuntime(target) {
   return { bin: path.join(extractDir, spec.bin), out: spec.out };
 }
 
+execSync("node scripts/build-guide.mjs", { cwd: root, stdio: "inherit" });
 console.log(`Build production (${DIST_DIR})…`);
 rm(path.join(root, DIST_DIR));
 execSync("npx next build", { cwd: root, stdio: "inherit", env: { ...process.env, NEXT_DIST_DIR: DIST_DIR } });
@@ -74,6 +75,7 @@ for (const target of targets) {
   fs.copyFileSync(path.join(root, "packaging", "launcher.mjs"), path.join(stage, "launcher.mjs"));
   fs.copyFileSync(path.join(root, "public", "mcp-stdio.mjs"), path.join(stage, "mcp-stdio.mjs"));
   fs.copyFileSync(path.join(root, "packaging", "HUONG-DAN.txt"), path.join(stage, "HUONG-DAN.txt"));
+  fs.copyFileSync(path.join(root, "docs", "HUONG-DAN-SU-DUNG.html"), path.join(stage, "HUONG-DAN-SU-DUNG.html"));
   if (target.startsWith("mac")) {
     fs.copyFileSync(path.join(root, "packaging", "start-mac.command"), path.join(stage, "start-mac.command"));
     fs.chmodSync(path.join(stage, "start-mac.command"), 0o755);

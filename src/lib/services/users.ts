@@ -52,6 +52,15 @@ export async function changePassword(db: DB, userId: string, current: string, ne
   await audit(db, { userId, action: "Đổi mật khẩu (đăng xuất mọi phiên cũ)" });
 }
 
+/** Admin sets a temporary password for someone who forgot theirs; their other sessions end. */
+export async function resetPassword(db: DB, actorId: string, userId: string, temp: string): Promise<void> {
+  if (temp.length < 8) throw new Error("Mật khẩu tạm cần ít nhất 8 ký tự.");
+  const [u] = await db.select().from(users).where(eq(users.id, userId));
+  if (!u) throw new Error("Không tìm thấy tài khoản.");
+  await db.update(users).set({ passwordHash: await bcrypt.hash(temp, 10), sessionVersion: u.sessionVersion + 1 }).where(eq(users.id, userId));
+  await audit(db, { userId: actorId, action: "Đặt lại mật khẩu", target: u.email });
+}
+
 export async function setAdmin(db: DB, actorId: string, userId: string, isAdmin: boolean): Promise<void> {
   if (actorId === userId && !isAdmin) throw new Error("Không thể tự bỏ quyền Admin của chính mình.");
   const [u] = await db.update(users).set({ isAdmin }).where(eq(users.id, userId)).returning({ email: users.email });

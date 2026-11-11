@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn QA Flow Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky table of contents on the left, one long reading column on the right. */
+:root {
+  --bg: #f4f6f9; --surface: #ffffff; --sunken: #f1f4f8; --ink: #0f172a; --ink-2: #334155; --muted: #64748b;
+  --line: #e3e8ef; --accent: #3554d1; --accent-soft: #eef2ff; --ok: #15803d; --warn: #b45309; --bad: #c62828;
+  --side: #0f172a;
+  --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1020; --surface: #121a2c; --sunken: #0f1626; --ink: #e6ebf5; --ink-2: #c3cbdb; --muted: #8e9ab3;
+    --line: #233049; --accent: #8ea2ff; --accent-soft: #1b2547; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --side: #080c18;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1020; --surface: #121a2c; --sunken: #0f1626; --ink: #e6ebf5; --ink-2: #c3cbdb; --muted: #8e9ab3;
+  --line: #233049; --accent: #8ea2ff; --accent-soft: #1b2547; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --side: #080c18;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15.5px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, kbd { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--sunken); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; }
+kbd { display: inline-block; background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 0 7px; font-family: var(--font); font-weight: 600; font-size: 0.86em; color: var(--ink); white-space: nowrap; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.3; letter-spacing: -0.01em; margin: 0; }
+
+.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+nav.toc { background: var(--side); color: #cbd5e1; padding: 22px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.brand { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 700; margin-bottom: 22px; }
+.logo { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: linear-gradient(135deg, #4c6ef5, #3554d1); font-size: 12.5px; color: #fff; flex: none; }
+.brand small { display: block; font-weight: 400; font-size: 12px; color: #7c8aa5; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: s; }
+nav.toc > ol > li { counter-increment: s; }
+nav.toc a { display: block; color: #cbd5e1; text-decoration: none; padding: 6px 10px; border-radius: 7px; font-size: 14px; }
+nav.toc > ol > li > a::before { content: counter(s) ". "; color: #7c8aa5; }
+nav.toc a:hover, nav.toc a.on { background: #1e293b; color: #fff; }
+nav.toc ol ol { padding-left: 14px; margin: 2px 0 6px; }
+nav.toc ol ol a { font-size: 13px; padding: 4px 10px; color: #94a3b8; }
+
+main { padding: 40px 48px 96px; max-width: 980px; width: 100%; }
+header.hero { display: flex; flex-direction: column; gap: 10px; padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+header.hero h1 { font-size: 32px; font-weight: 700; }
+header.hero p { color: var(--ink-2); max-width: 68ch; margin: 0; font-size: 16.5px; }
+.meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+section { padding-top: 40px; display: flex; flex-direction: column; gap: 14px; }
+section > h2 { font-size: 24px; font-weight: 700; display: flex; align-items: baseline; gap: 12px; }
+section > h2 .n { font-family: var(--mono); font-size: 15px; color: var(--accent); }
+section h3 { font-size: 18px; font-weight: 650; margin-top: 18px; }
+section p, section li { max-width: 72ch; }
+section p { margin: 0; }
+ul, ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+
+.steps { list-style: none; padding: 0; counter-reset: st; display: flex; flex-direction: column; gap: 10px; }
+.steps > li { counter-increment: st; position: relative; padding: 14px 16px 14px 56px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; max-width: none; }
+.steps > li::before { content: counter(st); position: absolute; left: 16px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; display: grid; place-items: center; }
+.steps > li b:first-child { display: block; margin-bottom: 2px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.card h4 { margin: 0; font-size: 15.5px; }
+.card p { font-size: 14.5px; color: var(--ink-2); }
+
+.note { border-radius: 12px; padding: 13px 16px; border: 1px solid; font-size: 14.5px; display: flex; flex-direction: column; gap: 4px; max-width: none; }
+.note b { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+.note.tip { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+.note.tip b { color: var(--accent); }
+.note.warn { background: color-mix(in srgb, var(--warn) 8%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+.note.warn b { color: var(--warn); }
+
+figure { margin: 6px 0 0; display: flex; flex-direction: column; gap: 8px; }
+figure img { max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); background: #fff; }
+figure.narrow img { max-width: min(460px, 100%); }
+figcaption { font-size: 13px; color: var(--muted); }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th { text-align: left; background: var(--sunken); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 10px 14px; }
+td { padding: 11px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+td.y { color: var(--ok); font-weight: 700; text-align: center; }
+td.n { color: var(--muted); text-align: center; }
+
+.code { position: relative; }
+.code pre { margin: 0; background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 14px 16px; padding-right: 86px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+.code button { position: absolute; top: 8px; right: 8px; font: inherit; font-size: 12px; font-weight: 600; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+.code button:hover { background: #334155; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button { font: inherit; font-size: 14px; font-weight: 600; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tabpanel[hidden] { display: none; }
+
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; counter-reset: f; }
+.flow div { counter-increment: f; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.flow div::before { content: counter(f, decimal-leading-zero); display: block; font-family: var(--mono); font-size: 11.5px; color: var(--accent); font-weight: 600; }
+
+footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; height: auto; }
+  main { padding: 28px 18px 72px; }
+}
+@media print {
+  nav.toc, .code button { display: none; }
+  .layout { display: block; }
+  main { padding: 0; max-width: none; }
+  section { break-inside: auto; }
+  figure, .steps > li, .note { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Mục lục">
+  <div class="brand"><span class="logo" aria-hidden="true">QA</span><span>QA Flow Hub<small>Hướng dẫn cho QC</small></span></div>
+  <ol>
+    <li><a href="#bat-dau">Bắt đầu nhanh</a></li>
+    <li><a href="#cai-dat">Cài và mở tool</a></li>
+    <li><a href="#lan-dau">Lần đầu mở</a></li>
+    <li><a href="#dung-thu">Dùng thử với dự án mẫu</a></li>
+    <li><a href="#ket-noi">Lấy token và kết nối</a>
+      <ol>
+        <li><a href="#gemini">Gemini (AI)</a></li>
+        <li><a href="#jira">Jira</a></li>
+        <li><a href="#testlink">TestLink</a></li>
+        <li><a href="#slack">Slack</a></li>
+        <li><a href="#du-an">Dự án, môi trường, tài khoản test</a></li>
+        <li><a href="#thanh-vien">Thành viên và quyền</a></li>
+      </ol>
+    </li>
+    <li><a href="#quy-trinh">Quy trình một story</a></li>
+    <li><a href="#tu-dong">Chạy tự động và kết quả API</a></li>
+    <li><a href="#antigravity">Kết nối Antigravity</a></li>
+    <li><a href="#loi">Lỗi thường gặp</a></li>
+    <li><a href="#bao-mat">Bảo mật và sao lưu</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="meta"><span class="chip">Bản cho QC</span><span class="chip">Đọc trong 15 phút</span></div>
+  <h1>Hướng dẫn dùng QA Flow Hub</h1>
+  <p>QA Flow Hub gom quy trình test của bạn về một chỗ: lấy story từ Jira, AI phân tích requirement và viết test case, đẩy sang TestLink, chấm kết quả theo từng round và môi trường, log sub-bug, viết report, chạy test tự động. Tài liệu này đi từ cài đặt, dùng thử không cần tài khoản, tới lấy từng loại token để nối với hệ thống thật.</p>
+</header>
+
+<!-- 1 -->
+<section id="bat-dau">
+  <h2><span class="n">01</span>Bắt đầu nhanh</h2>
+  <ol class="steps">
+    <li><b>Mở tool</b>Giải nén gói zip rồi bấm đúp file <code>start</code>, trình duyệt tự mở. Xem <a href="#cai-dat">mục 2</a>.</li>
+    <li><b>Tạo tài khoản Admin</b>Lần đầu mở, tool hỏi tên, email và mật khẩu. Đây là tài khoản quản trị của bạn.</li>
+    <li><b>Bấm “Tạo dự án mẫu”</b>Có ngay 3 story, 14 test case, một round DEV đã chạy kèm bug để bạn thử mọi màn mà chưa cần token nào.</li>
+    <li><b>Khi muốn dùng thật</b>Lấy API key Gemini, token Jira, API key TestLink theo <a href="#ket-noi">mục 5</a>, nhập ở <kbd>Quản trị → Kết nối</kbd>.</li>
+  </ol>
+  <div class="cards">
+    <div class="card"><h4>Không cần token</h4><p>Dùng thử dự án mẫu: chấm kết quả, log bug, verify, round 2, report, gate.</p></div>
+    <div class="card"><h4>Cần Gemini</h4><p>AI phân tích requirement, sinh test case, viết bug, viết nhận xét report, chạy test tự động.</p></div>
+    <div class="card"><h4>Cần Jira + TestLink</h4><p>Đồng bộ sprint thật, gửi Q&amp;A, tạo sub-bug trên Jira, đẩy test case và kết quả sang TestLink.</p></div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="cai-dat">
+  <h2><span class="n">02</span>Cài và mở tool</h2>
+  <p>Có hai cách. Không rành dòng lệnh thì dùng gói zip: không phải cài gì thêm.</p>
+  <div class="tabs" role="tablist" aria-label="Cách cài">
+    <button role="tab" id="t-zip" aria-selected="true" aria-controls="p-zip">Gói zip (khuyến nghị)</button>
+    <button role="tab" id="t-src" aria-selected="false" aria-controls="p-src">Chạy từ source code</button>
+  </div>
+  <div class="tabpanel" id="p-zip" role="tabpanel" aria-labelledby="t-zip">
+    <div class="tbl"><table>
+      <thead><tr><th>Máy của bạn</th><th>Tải file</th><th>Bấm đúp</th></tr></thead>
+      <tbody>
+        <tr><td>Windows</td><td><code>QA-Flow-Hub-win-x64.zip</code></td><td><code>start-windows.bat</code></td></tr>
+        <tr><td>Mac chip Apple (M1, M2, M3…)</td><td><code>QA-Flow-Hub-mac-arm64.zip</code></td><td><code>start-mac.command</code></td></tr>
+        <tr><td>Mac chip Intel</td><td><code>QA-Flow-Hub-mac-x64.zip</code></td><td><code>start-mac.command</code></td></tr>
+      </tbody>
+    </table></div>
+    <ol class="steps">
+      <li><b>Giải nén</b>Để thư mục ở chỗ cố định, ví dụ <code>Documents</code>. Không chạy trực tiếp trong file zip.</li>
+      <li><b>Bấm đúp file start</b>Một cửa sổ đen hiện lên, vài giây sau trình duyệt mở <code>http://localhost:3000</code>.</li>
+      <li><b>Để cửa sổ đen mở</b>Đó là tool đang chạy. Muốn tắt tool thì đóng cửa sổ đó.</li>
+    </ol>
+    <div class="note warn"><b>Mac chặn lần đầu</b>Nếu Mac báo “không mở được vì không xác minh được nhà phát triển”: chuột phải vào <code>start-mac.command</code> → <kbd>Open</kbd> → <kbd>Open</kbd>. Chỉ cần làm một lần. Windows hiện cảnh báo SmartScreen thì bấm <kbd>More info</kbd> → <kbd>Run anyway</kbd>.</div>
+  </div>
+  <div class="tabpanel" id="p-src" role="tabpanel" aria-labelledby="t-src" hidden>
+    <p>Cần Node.js 20.9 trở lên (gõ <code>node -v</code> để kiểm tra, tải ở nodejs.org) và Git.</p>
+    <div class="code"><pre>git clone https://github.com/huyentran1306/qc-flow-hub.git
+cd qc-flow-hub
+npm install
+npm run dev</pre><button type="button" data-copy>Copy</button></div>
+    <p>Mở <code>http://localhost:3000</code>. Lần đầu tool tự tạo database và khoá bí mật trong thư mục <code>.data/</code>, không cần cấu hình gì. Cổng 3000 đang bận thì chạy <code>npm run dev -- -p 3001</code>.</p>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="lan-dau">
+  <h2><span class="n">03</span>Lần đầu mở</h2>
+  <p>Tool hỏi tạo tài khoản Admin đầu tiên. Admin quản lý kết nối, dự án và thành viên. Sau đó bạn vào màn <b>Thiết lập</b> với 5 bước; bước nào chưa làm có nút <kbd>Làm</kbd> dẫn thẳng tới chỗ cần nhập.</p>
+  <figure class="narrow"><img src="IMG:01-setup" alt="Màn tạo tài khoản Admin đầu tiên với ô tên, email, mật khẩu"><figcaption>Tạo tài khoản Admin. Mật khẩu ít nhất 8 ký tự.</figcaption></figure>
+  <figure><img src="IMG:02-wizard" alt="Màn Thiết lập với 5 bước: Jira, TestLink, Gemini, dự án, thành viên"><figcaption>Màn Thiết lập. Có thể bỏ qua TestLink và Gemini, làm sau cũng được.</figcaption></figure>
+</section>
+
+<!-- 4 -->
+<section id="dung-thu">
+  <h2><span class="n">04</span>Dùng thử với dự án mẫu</h2>
+  <p>Ở <kbd>Sprint board</kbd> bấm <kbd>Tạo dự án mẫu</kbd>. Story <code>DEMO-110859 [MapDeck] Management</code> đã có sẵn 2 User Story, Q&amp;A, 14 test case (2 test case loại API) và round <code>DEV-R1</code> đã chạy: 7 Passed, 2 Failed có bug, 2 Blocked bởi ticket chặn.</p>
+  <figure><img src="IMG:03-board" alt="Sprint board với các ô số liệu và bảng story"><figcaption>Sprint board: số liệu của sprint, bấm vào ô số liệu hoặc mã story để mở chi tiết.</figcaption></figure>
+  <p>Mỗi story có 5 tab. Thử lần lượt:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Tab</th><th>Thử làm gì</th></tr></thead>
+    <tbody>
+      <tr><td><b>Tổng quan</b></td><td>Xem requirement, User Story, Q&amp;A. Thêm một câu hỏi, ghi câu trả lời. Thêm một test case thủ công.</td></tr>
+      <tr><td><b>Thực thi</b></td><td>Chấm <kbd>Passed</kbd> cho TC-12. Đặt một TC thành <kbd>Failed</kbd> rồi bấm <kbd>Log bug</kbd>. Bấm <kbd>Tạo round tiếp theo</kbd>: DEV-R2 chỉ gồm các TC chưa Passed.</td></tr>
+      <tr><td><b>Sub-bug</b></td><td>Bug <code>Resolved</code> có commit fix: đính kèm một ảnh rồi bấm <kbd>Verify và đóng bug</kbd>.</td></tr>
+      <tr><td><b>Báo cáo</b></td><td><kbd>Tính lại số liệu</kbd>, sửa nhận xét, bấm <kbd>Đánh dấu đã đăng</kbd>.</td></tr>
+      <tr><td><b>Môi trường và gate</b></td><td>Xem điều kiện còn thiếu. Khi đạt, bấm <kbd>Báo dev deploy Staging</kbd>: STG-R1 được tạo với toàn bộ test case.</td></tr>
+    </tbody>
+  </table></div>
+  <figure><img src="IMG:06-story" alt="Tab Tổng quan của story với requirement, phân tích AI và Q&amp;A"><figcaption>Tab Tổng quan.</figcaption></figure>
+  <figure><img src="IMG:09-run" alt="Tab Thực thi với khung Chạy tự động và bảng kết quả"><figcaption>Tab Thực thi: chọn build, chấm kết quả, chạy tự động.</figcaption></figure>
+  <figure><img src="IMG:10-bugs" alt="Tab Sub-bug với bug, commit fix và nút verify"><figcaption>Tab Sub-bug: verify và đóng bug cần ít nhất một ảnh/video chứng minh đã fix.</figcaption></figure>
+  <figure><img src="IMG:11-env" alt="Tab Môi trường và gate với DEV, STAGING, PRODUCTION"><figcaption>Tab Môi trường và gate.</figcaption></figure>
+  <div class="note tip"><b>Mẹo</b>Ở màn Thực thi, sửa ghi chú, mã ticket hoặc chọn file rồi bấm lại đúng kết quả hiện tại (ví dụ đang Failed thì bấm lại Failed) để lưu.</div>
+</section>
+
+<!-- 5 -->
+<section id="ket-noi">
+  <h2><span class="n">05</span>Lấy token và kết nối</h2>
+  <p>Mọi kết nối nhập ở <kbd>Quản trị → Kết nối</kbd> (chỉ Admin thấy). Bấm <kbd>Lưu và kiểm tra</kbd>: tool gọi thử và báo đúng sai ngay. Token được mã hoá, màn hình chỉ hiện 4 ký tự cuối.</p>
+  <div class="note warn"><b>Đừng gửi token qua chat</b>Tự dán token vào tool. Ai có token là làm được mọi việc mà tài khoản đó làm được.</div>
+
+  <h3 id="gemini">Gemini (AI)</h3>
+  <ol class="steps">
+    <li><b>Mở Google AI Studio</b>Vào <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a>, đăng nhập tài khoản Google.</li>
+    <li><b>Tạo key</b>Bấm <kbd>Create API key</kbd>, chọn hoặc tạo project, rồi copy key (bắt đầu bằng <code>AIza…</code>).</li>
+    <li><b>Nhập vào tool</b><kbd>Kết nối → Gemini</kbd>: Model ví dụ <code>gemini-3.5-flash</code>, dán API key, để trống Base URL, bấm <kbd>Lưu và kiểm tra</kbd>.</li>
+  </ol>
+  <figure class="narrow"><img src="IMG:05-gemini-card" alt="Thẻ kết nối Gemini với ô Model, Base URL và API key"><figcaption>Base URL chỉ điền khi công ty đi qua proxy riêng.</figcaption></figure>
+  <div class="note tip"><b>Model</b>Báo “Không tìm thấy model” thì mở AI Studio xem tên model đang có và sửa lại ô Model. Gói miễn phí có giới hạn số lần gọi mỗi phút: chạy tự động nhiều test case có thể chạm giới hạn, chờ một lúc rồi chạy tiếp.</div>
+
+  <h3 id="jira">Jira</h3>
+  <div class="tabs" role="tablist" aria-label="Loại Jira">
+    <button role="tab" id="t-cloud" aria-selected="true" aria-controls="p-cloud">Jira Cloud (*.atlassian.net)</button>
+    <button role="tab" id="t-dc" aria-selected="false" aria-controls="p-dc">Jira Server / Data Center</button>
+  </div>
+  <div class="tabpanel" id="p-cloud" role="tabpanel" aria-labelledby="t-cloud">
+    <ol class="steps">
+      <li><b>Mở trang token</b>Đăng nhập Atlassian bằng tài khoản sẽ dùng cho tool, vào <a href="https://id.atlassian.com/manage-profile/security/api-tokens">id.atlassian.com → Security → API tokens</a>.</li>
+      <li><b>Tạo token</b>Bấm <kbd>Create API token</kbd> (loại thường, <b>không</b> chọn loại “with scopes”), đặt tên ví dụ <code>QA Flow Hub</code>, chọn ngày hết hạn, rồi copy token. Token chỉ hiện một lần.</li>
+      <li><b>Nhập vào tool</b><kbd>Kết nối → Jira</kbd>: Base URL <code>https://tencongty.atlassian.net</code>, Loại <kbd>Jira Cloud</kbd>, Email đúng email của tài khoản vừa tạo token, dán token, bấm <kbd>Lưu và kiểm tra</kbd>.</li>
+    </ol>
+  </div>
+  <div class="tabpanel" id="p-dc" role="tabpanel" aria-labelledby="t-dc" hidden>
+    <ol class="steps">
+      <li><b>Tạo Personal Access Token</b>Trên Jira: ảnh đại diện → <kbd>Profile</kbd> → <kbd>Personal Access Tokens</kbd> → <kbd>Create token</kbd>, copy token.</li>
+      <li><b>Nhập vào tool</b>Base URL là địa chỉ Jira công ty, Loại <kbd>Server / Data Center</kbd>, để trống Email, dán token.</li>
+    </ol>
+  </div>
+  <figure class="narrow"><img src="IMG:04-jira-card" alt="Thẻ kết nối Jira với Base URL, loại Jira, email và token"><figcaption>Thẻ kết nối Jira.</figcaption></figure>
+  <div class="note tip"><b>Nên dùng tài khoản riêng cho tool</b>Bug và comment tool tạo sẽ đứng tên tài khoản này. Tài khoản cần quyền trên dự án: xem issue, tạo issue, comment, đính kèm file, chuyển trạng thái.</div>
+
+  <h3 id="testlink">TestLink</h3>
+  <ol class="steps">
+    <li><b>Bật API (Admin TestLink làm một lần)</b>Trong file <code>custom_config.inc.php</code> của TestLink có dòng <code>$tlCfg-&gt;api-&gt;enabled = TRUE;</code>.</li>
+    <li><b>Lấy API key</b>Đăng nhập TestLink → <kbd>My Settings</kbd> → mục <kbd>API interface</kbd> → <kbd>Generate a new key</kbd>, copy key.</li>
+    <li><b>Nhập vào tool</b><kbd>Kết nối → TestLink</kbd>: URL <code>https://testlink.congty.vn/lib/api/xmlrpc/v1/xmlrpc.php</code>, Login tác giả là username TestLink của bạn, dán API key.</li>
+  </ol>
+  <div class="note tip"><b>Chưa bật được API?</b>Bỏ qua bước này. Ở tab Tổng quan của story bấm <kbd>Tải XML TestLink</kbd>, rồi trong TestLink vào Test Specification, chọn suite, <kbd>Import</kbd> file đó như hiện tại.</div>
+
+  <h3 id="slack">Slack (tuỳ chọn)</h3>
+  <ol class="steps">
+    <li><b>Tạo app</b>Vào <a href="https://api.slack.com/apps">api.slack.com/apps</a> → <kbd>Create New App</kbd> → <kbd>From scratch</kbd>, đặt tên, chọn workspace.</li>
+    <li><b>Bật Incoming Webhooks</b>Trong app: <kbd>Incoming Webhooks</kbd> → bật On → <kbd>Add New Webhook</kbd> → chọn kênh (ví dụ <code>#qa-op</code>) → <kbd>Allow</kbd>. Workspace có thể cần Admin Slack duyệt.</li>
+    <li><b>Nhập vào tool</b><kbd>Kết nối → Slack</kbd>: dán Webhook URL (<code>https://hooks.slack.com/services/…</code>), bấm <kbd>Lưu và kiểm tra</kbd>: kênh sẽ nhận một tin nhắn thử.</li>
+  </ol>
+  <p>Tool gửi vào kênh: report đã đăng, báo dev deploy, bug dev chuyển Resolved cần verify.</p>
+
+  <h3 id="du-an">Dự án, URL môi trường, tài khoản test</h3>
+  <p><kbd>Quản trị → Dự án và ánh xạ</kbd> → <kbd>Thêm dự án</kbd>:</p>
+  <ul>
+    <li><b>Mã dự án Jira</b>: ví dụ <code>OP</code>.</li>
+    <li><b>Jira board id</b>: mở board trên Jira, số trong địa chỉ là board id. Ví dụ <code>…/projects/OP/boards/<b>42</b></code> hoặc <code>RapidBoard.jspa?rapidView=<b>42</b></code>.</li>
+    <li><b>Tên project trên TestLink</b>: gõ đúng tên như trong TestLink.</li>
+    <li><b>Issue type Story / Sub-bug</b>: đúng tên trong Jira (Project settings → Issue types).</li>
+    <li><b>Field Severity / Environment</b>: nếu Jira có. Mã field dạng <code>customfield_10045</code>, xem trong đường dẫn khi mở field ở trang quản lý Custom fields.</li>
+    <li><b>Trạng thái Resolved / Closed / mở lại</b>: tên trạng thái trên workflow bug của team, cách nhau bằng dấu phẩy.</li>
+    <li><b>URL môi trường DEV / STAGING / PRODUCTION</b> và <b>tài khoản test</b>: dùng cho chạy tự động. Mật khẩu được mã hoá, không hiện lại, không gửi cho AI.</li>
+  </ul>
+  <figure><img src="IMG:13-project" alt="Form dự án với ánh xạ Jira, URL môi trường và tài khoản test"><figcaption>Form dự án. Tài khoản test nằm ở cuối.</figcaption></figure>
+  <p>Xong thì về <kbd>Sprint board</kbd>, chọn dự án ở góc trên, bấm <kbd>Đồng bộ Jira</kbd>.</p>
+
+  <h3 id="thanh-vien">Thành viên và quyền</h3>
+  <p><kbd>Quản trị → Người dùng và quyền</kbd> → <kbd>Thêm thành viên</kbd>: nhập tên, email, mật khẩu tạm, chọn dự án và vai trò. Gửi mật khẩu tạm qua kênh riêng; người đó đổi lại ở <kbd>Hồ sơ</kbd>. Quên mật khẩu thì Admin bấm <kbd>Đặt lại mật khẩu</kbd> ở dòng của người đó.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Việc</th><th>Admin</th><th>QC Lead</th><th>QC</th><th>Dev</th><th>PO / BA</th></tr></thead>
+    <tbody>
+      <tr><td>Xem sprint, story, report</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+      <tr><td>AI phân tích, sinh test case, chạy tự động</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Chấm kết quả, log và đóng bug</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Ghi câu trả lời Q&amp;A</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td></tr>
+      <tr><td>Vượt gate (kèm lý do)</td><td class="n">—</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Kết nối, thành viên, dự án, audit log</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+    </tbody>
+  </table></div>
+  <p>Admin không tự động làm được việc QC; muốn vừa quản trị vừa test thì gán thêm vai trò QC Lead cho chính mình trong dự án.</p>
+</section>
+
+<!-- 6 -->
+<section id="quy-trinh">
+  <h2><span class="n">06</span>Quy trình một story</h2>
+  <p>Đúng quy trình team đang làm, mỗi bước là một nút trong tool:</p>
+  <div class="flow">
+    <div><b>Đồng bộ Jira</b><br>Story của sprint về tool</div>
+    <div><b>AI phân tích</b><br>Tách US, điểm cần test, câu hỏi</div>
+    <div><b>Q&amp;A</b><br>Gửi lên Jira, nhận câu trả lời</div>
+    <div><b>Sinh test case</b><br>AI viết nháp, QC duyệt</div>
+    <div><b>Đẩy TestLink</b><br>Hoặc tải file XML</div>
+    <div><b>DEV-R1</b><br>Chấm tay hoặc chạy tự động</div>
+    <div><b>Log bug</b><br>AI viết, tạo sub-bug trên Jira</div>
+    <div><b>Report R1</b><br>AI nhận xét, đăng Jira/Slack</div>
+    <div><b>Verify bug</b><br>Ảnh đã fix rồi đóng</div>
+    <div><b>DEV-R2</b><br>Chỉ TC chưa Passed</div>
+    <div><b>Gate</b><br>Báo dev deploy Staging</div>
+    <div><b>STG → PROD</b><br>Lặp lại, PROD chỉ happy case</div>
+  </div>
+  <ul>
+    <li><b>Lấy câu trả lời Q&amp;A</b>: câu hỏi gửi lên Jira có mã như <code>Q-AB12CD</code>. Nhắc BA/PO trả lời bằng comment mới kèm mã đó; bấm <kbd>Lấy trả lời từ Jira</kbd> (hoặc <kbd>Đồng bộ Jira</kbd>) rồi <kbd>Dùng câu trả lời này</kbd>.</li>
+    <li><b>Failed phải có bug, Blocked phải có ticket chặn</b>: nếu thiếu, tool không cho gửi kết quả lên TestLink.</li>
+    <li><b>Trạng thái bug</b> cập nhật mỗi lần <kbd>Đồng bộ Jira</kbd>; bug dev chuyển Resolved hiện ở <kbd>Sub-bug → Chờ QC verify</kbd>.</li>
+    <li><b>Commit fix</b>: dán link hoặc mã commit ở thẻ bug nếu chưa có Git webhook.</li>
+  </ul>
+</section>
+
+<!-- 7 -->
+<section id="tu-dong">
+  <h2><span class="n">07</span>Chạy test tự động và kết quả API</h2>
+  <p>Ở tab <b>Thực thi</b>, khung <b>Chạy tự động</b>: AI đọc từng test case, tool tự mở Chrome (Windows dùng Edge cũng được) thao tác trên URL môi trường, ghi Passed / Failed / Blocked kèm ảnh chụp. Test case loại <b>API</b> được gọi thẳng, không mở trình duyệt.</p>
+  <ol class="steps">
+    <li><b>Chuẩn bị</b>Đã kết nối Gemini; dự án có URL môi trường và tài khoản test (dự án mẫu đã có sẵn).</li>
+    <li><b>Bấm Chạy tự động</b>Mặc định chạy các test case chưa chạy. Tick <kbd>Chạy lại cả TC Failed / Blocked</kbd> để chạy lại, tick <kbd>Hiện cửa sổ trình duyệt</kbd> để xem AI thao tác.</li>
+    <li><b>Theo dõi</b>Thanh tiến độ và nhật ký tự cập nhật. Có thể bấm <kbd>Huỷ lượt chạy</kbd>.</li>
+    <li><b>Duyệt kết quả</b>Kết quả có nhãn “Tự động · chờ duyệt”. Xem ghi chú, ảnh, kết quả API rồi bấm <kbd>Duyệt tất cả</kbd> hoặc sửa lại. Test case Failed thì bấm <kbd>AI viết bug</kbd>.</li>
+  </ol>
+  <figure><img src="IMG:07-autorun" alt="Khung Chạy tự động với nhật ký và khung Chạy bằng Antigravity"><figcaption>Khung Chạy tự động (trái) và Chạy bằng Antigravity (phải).</figcaption></figure>
+  <p><b>Kết quả API</b>: mỗi test case có mục <code>API (n lời gọi · m lỗi)</code> liệt kê method, đường dẫn, mã trạng thái, thời gian, request và response. Test giao diện cũng ghi lại các API mà trang đã gọi trong lúc chạy. Lời gọi 4xx/5xx được tô màu. Tab Báo cáo có phần <b>Kết quả API</b> tổng hợp các lời gọi lỗi.</p>
+  <figure><img src="IMG:08-api-row" alt="Dòng TC-14 với kết quả Failed và mục API hiển thị DELETE trả 500"><figcaption>TC-14 của dự án mẫu: API xoá trả 500 thay vì 404.</figcaption></figure>
+  <div class="note tip"><b>Để AI chạy chuẩn</b>Viết bước cụ thể (bấm nút nào, gõ gì, thấy gì). Test case cần thao tác đặc biệt như ngắt mạng sẽ được đánh Blocked kèm ghi chú “cần test tay”. Test case loại API ghi rõ method và đường dẫn, ví dụ <code>DELETE /api/mapdecks/123</code> → <code>HTTP 404</code>.</div>
+</section>
+
+<!-- 8 -->
+<section id="antigravity">
+  <h2><span class="n">08</span>Kết nối Antigravity (tuỳ chọn)</h2>
+  <p>Nếu bạn dùng Antigravity, agent trong đó có thể đọc test case, tự chạy trên trình duyệt và gửi kết quả, ảnh, lời gọi API, nháp bug về tool qua MCP.</p>
+  <ol class="steps">
+    <li><b>Tạo token MCP</b>Góc trên bên phải → <kbd>Hồ sơ và token MCP</kbd> → đặt tên (ví dụ <code>Antigravity · MacBook</code>), quyền <kbd>Đọc + ghi</kbd> → <kbd>Tạo token</kbd>. Token chỉ hiện một lần.</li>
+    <li><b>Copy cấu hình</b>Bấm <kbd>Copy cấu hình</kbd>. Đoạn này đã có sẵn đường dẫn tới chương trình kết nối nằm trong thư mục tool và token của bạn.</li>
+    <li><b>Dán vào Antigravity</b>Mở phần quản lý MCP server của Antigravity (thường ở menu “…” của khung Agent → MCP Servers → Manage MCP Servers → View raw config; tên menu có thể khác tuỳ phiên bản), dán vào mục <code>mcpServers</code>, lưu và làm mới.</li>
+    <li><b>Ra lệnh cho agent</b>Ở tab Thực thi của story, khung <b>Chạy bằng Antigravity</b> có câu lệnh soạn sẵn cho build đang mở: bấm <kbd>Copy câu lệnh cho Antigravity</kbd> rồi dán vào khung chat của agent.</li>
+  </ol>
+  <figure class="narrow"><img src="IMG:12-mcp-token" alt="Thẻ token vừa tạo với đoạn cấu hình MCP và nút copy"><figcaption>Cấu hình MCP sau khi tạo token.</figcaption></figure>
+  <div class="note warn"><b>Lưu ý</b>Tool phải đang chạy khi agent làm việc. Mọi thứ agent ghi đều chờ bạn duyệt ở menu <kbd>AI Agent</kbd>. Không dùng máy nữa thì <kbd>Thu hồi</kbd> token ở Hồ sơ.</div>
+</section>
+
+<!-- 9 -->
+<section id="loi">
+  <h2><span class="n">09</span>Lỗi thường gặp</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Thấy gì</th><th>Làm gì</th></tr></thead>
+    <tbody>
+      <tr><td>Trình duyệt không tự mở / cổng 3000 bận</td><td>Xem địa chỉ in trong cửa sổ đen (có thể là <code>localhost:3001</code>) và mở tay.</td></tr>
+      <tr><td>Jira: <code>HTTP 401 – sai email/token</code></td><td>Email phải đúng tài khoản tạo token. Tạo lại token loại thường (không “with scopes”).</td></tr>
+      <tr><td>Jira: <code>HTTP 404</code> khi đồng bộ</td><td>Sai Base URL hoặc board id. Board phải có sprint đang chạy.</td></tr>
+      <tr><td>Jira: không tìm thấy transition sang Closed</td><td>Sửa danh sách trạng thái Closed ở màn Dự án cho đúng workflow của team.</td></tr>
+      <tr><td>Gemini: API key không hợp lệ</td><td>Tạo lại key ở AI Studio, dán lại.</td></tr>
+      <tr><td>Gemini: không tìm thấy model / vượt hạn mức</td><td>Sửa tên model theo AI Studio. Vượt hạn mức thì chờ vài phút.</td></tr>
+      <tr><td>TestLink: invalid developer key / không phải XML-RPC</td><td>Kiểm tra API key và URL phải kết thúc bằng <code>/lib/api/xmlrpc/v1/xmlrpc.php</code>.</td></tr>
+      <tr><td>Chạy tự động: không mở được trình duyệt</td><td>Cài Google Chrome (Windows có Edge là được).</td></tr>
+      <tr><td>Chạy tự động: nhiều test case Blocked</td><td>Kiểm tra URL môi trường, tài khoản test, máy có vào được môi trường đó (VPN) không; viết bước cụ thể hơn.</td></tr>
+      <tr><td>Không kết nối được Jira/TestLink công ty</td><td>Máy phải vào được mạng công ty (VPN khi làm từ xa).</td></tr>
+      <tr><td>Quên mật khẩu</td><td>Nhờ Admin <kbd>Đặt lại mật khẩu</kbd> ở màn Người dùng và quyền.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 10 -->
+<section id="bao-mat">
+  <h2><span class="n">10</span>Bảo mật và sao lưu</h2>
+  <ul>
+    <li>Toàn bộ dữ liệu (tài khoản, story, test case, ảnh, token đã nhập) nằm trong thư mục <code>data</code> cạnh file start (chạy từ source thì là <code>.data</code>).</li>
+    <li><b>Sao lưu</b>: tắt tool, copy thư mục <code>data</code> đi chỗ khác. <b>Lên bản mới</b>: giải nén bản mới, copy thư mục <code>data</code> cũ sang, rồi mở.</li>
+    <li>Không gửi thư mục <code>data</code> cho người khác: trong đó có khoá giải mã các token.</li>
+    <li>Mặc định chỉ máy bạn mở được tool. Muốn đồng nghiệp cùng mạng LAN dùng chung, xem file <code>HUONG-DAN.txt</code> trong gói.</li>
+    <li>Đổi mật khẩu sẽ đăng xuất mọi phiên đăng nhập khác. Nghi lộ token Jira/Gemini thì thu hồi ở trang gốc rồi nhập token mới ở màn Kết nối.</li>
+  </ul>
+  <footer>QA Flow Hub · tài liệu dành cho QC · có câu hỏi hoặc lỗi, chụp màn hình gửi người cài tool cho bạn.</footer>
+</section>
+</main>
+</div>
+
+<script>
+(function () {
+  // Copy buttons for code blocks.
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.parentElement.querySelector("pre").innerText;
+      var done = function (ok) { btn.textContent = ok ? "Đã copy" : "Hãy chọn và copy"; setTimeout(function () { btn.textContent = "Copy"; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+      else done(false);
+    });
+  });
+  // Tabs.
+  document.querySelectorAll("[role=tablist]").forEach(function (list) {
+    var tabs = Array.prototype.slice.call(list.querySelectorAll("[role=tab]"));
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.setAttribute("aria-selected", on ? "true" : "false");
+          document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+        });
+      });
+    });
+  });
+  // Highlight the section being read in the table of contents.
+  var links = Array.prototype.slice.call(document.querySelectorAll("nav.toc a"));
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting && byId[e.target.id]) {
+          links.forEach(function (a) { a.classList.remove("on"); });
+          byId[e.target.id].classList.add("on");
+        }
+      });
+    }, { rootMargin: "0px 0px -70% 0px" });
+    document.querySelectorAll("section[id], h3[id]").forEach(function (s) { io.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

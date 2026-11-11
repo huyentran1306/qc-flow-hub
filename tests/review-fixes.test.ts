@@ -65,3 +65,16 @@ describe("review fixes", () => {
     expect(seqs.slice(-2)).toEqual([15, 16]);
   });
 });
+
+describe("admin password reset", () => {
+  it("sets a temporary password and ends the user's sessions", async () => {
+    const { resetPassword, createUser, verifyLogin } = await import("@/lib/services/users");
+    const db = await openDb({ memory: true });
+    const admin = await createFirstAdmin(db, { email: "admin@x.vn", name: "A", password: "password123" });
+    const qc = await createUser(db, admin, { email: "qc@x.vn", name: "Q", password: "password123", isAdmin: false });
+    await expect(resetPassword(db, admin, qc, "ngan")).rejects.toThrow(/8 ký tự/);
+    await resetPassword(db, admin, qc, "TamThoi2026");
+    expect(await verifyLogin(db, "qc@x.vn", "password123")).toBeNull();
+    expect((await verifyLogin(db, "qc@x.vn", "TamThoi2026"))?.sessionVersion).toBe(1);
+  });
+});

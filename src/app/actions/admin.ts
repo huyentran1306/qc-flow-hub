@@ -4,7 +4,7 @@ import { actorFor } from "@/lib/session";
 import { runAndReturn } from "@/lib/flash";
 import { saveConnection, checkConnection, CONNECTION_FIELDS } from "@/lib/services/connections";
 import { createProject, parseProjectForm, updateProject } from "@/lib/services/projects";
-import { createUser, setAdmin, setDisabled, setMembership } from "@/lib/services/users";
+import { createUser, resetPassword, setAdmin, setDisabled, setMembership } from "@/lib/services/users";
 import { saveAccountsFromForm } from "@/lib/services/testAccounts";
 import { ROLES, type ConnectionKind, type Role } from "@/lib/db/schema";
 
@@ -91,6 +91,16 @@ export async function toggleAdminAction(fd: FormData) {
     const { db, user } = await actorFor("admin.users");
     await setAdmin(db, user.id, String(fd.get("userId")), fd.get("value") === "1");
     return "Đã cập nhật quyền Admin.";
+  });
+}
+
+export async function resetPasswordAction(fd: FormData) {
+  await runAndReturn("/admin/users", async () => {
+    const { db, user } = await actorFor("admin.users");
+    const target = String(fd.get("userId"));
+    if (target === user.id) throw new Error("Đổi mật khẩu của chính bạn ở màn Hồ sơ.");
+    await resetPassword(db, user.id, target, String(fd.get("password") ?? ""));
+    return "Đã đặt mật khẩu tạm. Gửi cho người đó qua kênh riêng và nhắc đổi lại ở Hồ sơ.";
   });
 }
 
