@@ -1,11 +1,24 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
-function appSecret(): string {
+/** Secret for sessions and stored tokens.
+ *  Production must set APP_SECRET. On a developer machine a random one is created once in
+ *  .data/app-secret.txt, so `npm install && npm run dev` works right after cloning. */
+export function appSecret(): string {
   const s = process.env.APP_SECRET;
-  if (!s || s.length < 32) {
+  if (s && s.length >= 32) return s;
+  if (process.env.NODE_ENV === "production") {
     throw new Error("APP_SECRET chưa được đặt hoặc ngắn hơn 32 ký tự. Xem file .env.example.");
   }
-  return s;
+  const file = path.join(process.cwd(), ".data", "app-secret.txt");
+  if (!fs.existsSync(file)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, randomBytes(48).toString("base64"), { mode: 0o600 });
+  }
+  const local = fs.readFileSync(file, "utf8").trim();
+  process.env.APP_SECRET = local;
+  return local;
 }
 
 function derive(purpose: string): Buffer {

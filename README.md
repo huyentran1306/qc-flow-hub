@@ -14,13 +14,18 @@ Chức năng:
 
 ## Chạy trên máy
 
-Yêu cầu: Node.js 20+.
+Yêu cầu: Node.js 20.9 trở lên (kiểm tra bằng `node -v`, tải ở nodejs.org).
 
 ```bash
+git clone https://github.com/huyentran1306/qc-flow-hub.git
+cd qc-flow-hub
 npm install
-cp .env.example .env.local      # rồi điền APP_SECRET: openssl rand -base64 48
-npm run dev                     # http://localhost:3000
+npm run dev                     # mở http://localhost:3000
 ```
+
+Không cần cài database hay tạo file cấu hình: lần chạy đầu tool tự tạo database (PGlite) và khoá bí mật trong thư mục `.data/`. Muốn đổi cổng: `npm run dev -- -p 3001`.
+
+Chạy trên server (production) thì bắt buộc đặt `APP_SECRET` trong `.env.local` hoặc biến môi trường, xem `.env.example`.
 
 Lần đầu mở sẽ vào màn **Thiết lập lần đầu** để tạo tài khoản Admin. Sau đó:
 
