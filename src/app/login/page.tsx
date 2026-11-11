@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if ((await userCount(await getDb())) === 0) redirect("/setup");
-  if (await currentUser()) redirect("/board");
+  if (await currentUser()) redirect("/dashboard");
   const sp = await searchParams;
   const sso = (await listConnections(await getDb())).sso;
   const ssoLabel = sso?.config.issuer && sso.config.clientId && sso.secretHint ? sso.config.label || "SSO" : null;

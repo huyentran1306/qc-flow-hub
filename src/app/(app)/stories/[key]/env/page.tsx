@@ -13,7 +13,7 @@ import { ENVS } from "@/lib/db/schema";
 export default async function EnvPage({ params, searchParams }: PageProps<"/stories/[key]/env">) {
   const { key } = await params;
   const sp = await searchParams;
-  const { db, data, role, actor, allowed } = await loadStoryPage(key);
+  const { db, user, data, role, actor, allowed, owner } = await loadStoryPage(key);
   const { story, project } = data;
   if (!allowed) return <div className="flash err">Bạn không thuộc dự án {project.key}.</div>;
   const all = await storyBuilds(db, story.id);
@@ -25,7 +25,7 @@ export default async function EnvPage({ params, searchParams }: PageProps<"/stor
 
   return (
     <>
-      <StoryHeader story={story} role={role} tab="/env" />
+      <StoryHeader story={story} role={role} tab="/env" owner={owner} meId={user.id} />
       <Flash ok={sp.ok} err={sp.err} />
       <div className="pipe">
         {ENVS.map((env, i) => {

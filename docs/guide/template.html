@@ -148,6 +148,7 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
     </li>
     <li><a href="#quy-trinh">Quy trình một story</a></li>
     <li><a href="#tu-dong">Chạy tự động và kết quả API</a></li>
+    <li><a href="#theo-doi">Dashboard, Việc của tôi, Regression</a></li>
     <li><a href="#antigravity">Kết nối Antigravity</a></li>
     <li><a href="#loi">Lỗi thường gặp</a></li>
     <li><a href="#bao-mat">Bảo mật và sao lưu</a></li>
@@ -156,7 +157,7 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
 
 <main>
 <header class="hero">
-  <div class="meta"><span class="chip">Bản cho QC</span><span class="chip">Đọc trong 15 phút</span></div>
+  <div class="meta"><span class="chip">Bản cho QC</span><span class="chip">Đọc trong 20 phút</span></div>
   <h1>Hướng dẫn dùng QA Flow Hub</h1>
   <p>QA Flow Hub gom quy trình test của bạn về một chỗ: lấy story từ Jira, AI phân tích requirement và viết test case, đẩy sang TestLink, chấm kết quả theo từng round và môi trường, log sub-bug, viết report, chạy test tự động. Tài liệu này đi từ cài đặt, dùng thử không cần tài khoản, tới lấy từng loại token để nối với hệ thống thật.</p>
 </header>
@@ -367,8 +368,39 @@ npm run dev</pre><button type="button" data-copy>Copy</button></div>
 </section>
 
 <!-- 8 -->
+<section id="theo-doi">
+  <h2><span class="n">08</span>Dashboard, Việc của tôi, Regression và AI</h2>
+  <h3>Dashboard</h3>
+  <p>Trang mở đầu sau khi đăng nhập. Gồm pass rate hiện tại, số test case chưa chạy, bug đang mở và chờ verify, thời gian fix trung bình, tỉ lệ chạy tự động; biểu đồ kết quả 14 ngày, tiến độ sprint, bug theo mức độ, story theo giai đoạn; bảng story cần chú ý và khối lượng việc từng người. Rê chuột lên cột để xem số; bấm <kbd>Xem bảng số liệu</kbd> để xem dạng bảng.</p>
+  <figure><img src="IMG:14-dashboard" alt="Dashboard với các ô số liệu, biểu đồ kết quả 14 ngày và tiến độ sprint"><figcaption>Dashboard của dự án mẫu.</figcaption></figure>
+  <ul>
+    <li><b>Xuất Excel</b>: ba nút <kbd>Story</kbd>, <kbd>Kết quả test</kbd>, <kbd>Bug</kbd> tải file CSV mở được bằng Excel (giữ đúng tiếng Việt).</li>
+    <li><b>Hỏi AI về dự án</b>: gõ câu hỏi như “Story nào rủi ro nhất và vì sao?”, “Tóm tắt tình hình cho standup”. AI chỉ trả lời dựa trên số liệu của dự án; câu trả lời được lưu lại bên dưới.</li>
+  </ul>
+  <h3>Việc của tôi và thông báo</h3>
+  <p>Mở một story, bấm <kbd>Nhận story</kbd> để thành người phụ trách. Trang <b>Việc của tôi</b> gom mọi việc cần làm trên các story của bạn: test case chưa chạy, bug chờ verify, nháp AI chờ duyệt, câu trả lời Q&amp;A, report chưa đăng, story đã đạt gate. Chưa nhận story nào thì trang hiện việc của cả dự án.</p>
+  <figure><img src="IMG:15-mywork" alt="Trang Việc của tôi với các nhóm việc"><figcaption>Việc của tôi.</figcaption></figure>
+  <p>Chuông ở góc trên báo khi: dev chuyển bug sang Resolved, BA/PO trả lời Q&amp;A trên Jira, Antigravity tạo nháp, story chuyển môi trường, lượt chạy tự động hoặc regression xong. Bấm vào thông báo để mở đúng chỗ.</p>
+  <figure class="narrow"><img src="IMG:18-bell" alt="Danh sách thông báo mở từ chuông"><figcaption>Chuông thông báo.</figcaption></figure>
+  <h3>Regression và lịch chạy tự động</h3>
+  <ol class="steps">
+    <li><b>Tạo bộ</b>Menu <kbd>Regression</kbd> → <kbd>Tạo bộ regression</kbd>: đặt tên (ví dụ “Smoke STAGING”), chọn môi trường.</li>
+    <li><b>Chọn test case</b>Tick test case từ nhiều story; có nút chọn nhanh mọi happy case hoặc mọi test case API.</li>
+    <li><b>Lên lịch</b>Chọn <kbd>Hằng ngày</kbd> hoặc <kbd>Thứ 2 – thứ 6</kbd> và giờ chạy (giờ Việt Nam). Lịch chỉ chạy khi tool đang mở.</li>
+    <li><b>Chạy và xem kết quả</b><kbd>Chạy ngay</kbd> hoặc chờ đến giờ. Xong sẽ có thông báo, tin Slack (nếu đã kết nối) và bảng kết quả từng test case kèm số lỗi API.</li>
+  </ol>
+  <figure><img src="IMG:16-regression" alt="Bộ regression Smoke DEMO với kết quả lượt chạy"><figcaption>Dự án mẫu có sẵn bộ “Smoke DEMO”. Kết quả regression không làm thay đổi round và gate của story.</figcaption></figure>
+  <h3>AI kiểm tra độ phủ và cảnh báo bug trùng</h3>
+  <ul>
+    <li><b>Độ phủ yêu cầu</b> (tab Tổng quan của story): bảng AC ↔ test case tự tính theo cột Ref. Bấm <kbd>AI kiểm tra độ phủ</kbd> để AI đối chiếu requirement, Q&amp;A với test case, đánh dấu chỗ thiếu và gợi ý test case; bấm <kbd>Thêm thành nháp</kbd> để đưa gợi ý vào hàng chờ duyệt.</li>
+    <li><b>Bug có thể trùng</b>: khi soạn nháp bug, tool so với các bug đã có trong dự án và cảnh báo nếu giống nhau, kèm link để kiểm tra trước khi tạo.</li>
+  </ul>
+  <figure><img src="IMG:17-coverage" alt="Thẻ độ phủ yêu cầu với bảng AC và test case"><figcaption>Độ phủ yêu cầu của DEMO-110859.</figcaption></figure>
+</section>
+
+<!-- 9 -->
 <section id="antigravity">
-  <h2><span class="n">08</span>Kết nối Antigravity (tuỳ chọn)</h2>
+  <h2><span class="n">09</span>Kết nối Antigravity (tuỳ chọn)</h2>
   <p>Nếu bạn dùng Antigravity, agent trong đó có thể đọc test case, tự chạy trên trình duyệt và gửi kết quả, ảnh, lời gọi API, nháp bug về tool qua MCP.</p>
   <ol class="steps">
     <li><b>Tạo token MCP</b>Góc trên bên phải → <kbd>Hồ sơ và token MCP</kbd> → đặt tên (ví dụ <code>Antigravity · MacBook</code>), quyền <kbd>Đọc + ghi</kbd> → <kbd>Tạo token</kbd>. Token chỉ hiện một lần.</li>
@@ -380,9 +412,9 @@ npm run dev</pre><button type="button" data-copy>Copy</button></div>
   <div class="note warn"><b>Lưu ý</b>Tool phải đang chạy khi agent làm việc. Mọi thứ agent ghi đều chờ bạn duyệt ở menu <kbd>AI Agent</kbd>. Không dùng máy nữa thì <kbd>Thu hồi</kbd> token ở Hồ sơ.</div>
 </section>
 
-<!-- 9 -->
+<!-- 10 -->
 <section id="loi">
-  <h2><span class="n">09</span>Lỗi thường gặp</h2>
+  <h2><span class="n">10</span>Lỗi thường gặp</h2>
   <div class="tbl"><table>
     <thead><tr><th>Thấy gì</th><th>Làm gì</th></tr></thead>
     <tbody>
@@ -396,14 +428,15 @@ npm run dev</pre><button type="button" data-copy>Copy</button></div>
       <tr><td>Chạy tự động: không mở được trình duyệt</td><td>Cài Google Chrome (Windows có Edge là được).</td></tr>
       <tr><td>Chạy tự động: nhiều test case Blocked</td><td>Kiểm tra URL môi trường, tài khoản test, máy có vào được môi trường đó (VPN) không; viết bước cụ thể hơn.</td></tr>
       <tr><td>Không kết nối được Jira/TestLink công ty</td><td>Máy phải vào được mạng công ty (VPN khi làm từ xa).</td></tr>
+      <tr><td>Bộ regression không chạy theo lịch</td><td>Lịch chỉ chạy khi tool đang mở (cửa sổ đen còn chạy) và đã kết nối Gemini. Xem thông báo ở chuông để biết lý do.</td></tr>
       <tr><td>Quên mật khẩu</td><td>Nhờ Admin <kbd>Đặt lại mật khẩu</kbd> ở màn Người dùng và quyền.</td></tr>
     </tbody>
   </table></div>
 </section>
 
-<!-- 10 -->
+<!-- 11 -->
 <section id="bao-mat">
-  <h2><span class="n">10</span>Bảo mật và sao lưu</h2>
+  <h2><span class="n">11</span>Bảo mật và sao lưu</h2>
   <ul>
     <li>Toàn bộ dữ liệu (tài khoản, story, test case, ảnh, token đã nhập) nằm trong thư mục <code>data</code> cạnh file start (chạy từ source thì là <code>.data</code>).</li>
     <li><b>Sao lưu</b>: tắt tool, copy thư mục <code>data</code> đi chỗ khác. <b>Lên bản mới</b>: giải nén bản mới, copy thư mục <code>data</code> cũ sang, rồi mở.</li>

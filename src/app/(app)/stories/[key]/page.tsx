@@ -4,6 +4,8 @@ import { isQcSubtask, isSubBug } from "@/lib/services/stories";
 import { listConnections } from "@/lib/services/connections";
 import { stepsToText } from "@/lib/services/testcases";
 import { questionCode } from "@/lib/services/questions";
+import { acMatrix } from "@/lib/services/coverage";
+import { aiCoverageAction, addCoverageSuggestionsAction } from "@/app/actions/extra";
 import { fmtDateTime, tcCode } from "@/lib/format";
 import { Flash } from "@/components/Flash";
 import { StoryHeader } from "@/components/StoryHeader";
@@ -83,7 +85,7 @@ function TcFields({ tc, usCodes, idp }: { tc?: typeof testCases.$inferSelect; us
 export default async function StoryPage({ params, searchParams }: PageProps<"/stories/[key]">) {
   const { key } = await params;
   const sp = await searchParams;
-  const { db, data, role, actor, allowed } = await loadStoryPage(key);
+  const { db, user, data, role, actor, allowed, owner } = await loadStoryPage(key);
   const { story, project, userStories, questions, testCases: tcs } = data;
   if (!allowed) {
     return <div className="flash err">Bạn không thuộc dự án {project.key} nên không xem được story này.</div>;
@@ -94,6 +96,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/st
   const approved = tcs.filter((t) => t.status === "approved");
   const notPushed = approved.filter((t) => !t.testlinkId).length;
   const usCodes = userStories.map((u) => u.code);
+  const matrix = acMatrix(story.description, tcs);
   const hidden = (
     <>
       <input type="hidden" name="storyId" value={story.id} />
@@ -178,7 +181,7 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/st
 
   return (
     <>
-      <StoryHeader story={story} role={role} tab="" jiraUrl={jiraUrl} />
+      <StoryHeader story={story} role={role} tab="" jiraUrl={jiraUrl} owner={owner} meId={user.id} />
       <Flash ok={sp.ok} err={sp.err} />
 
       <div className="grid2">
@@ -379,6 +382,83 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/st
             )}
           </div>
         </div>
+      </div>
+
+      <div className="card" id="coverage">
+        <h2>
+          <span>
+            Độ phủ yêu cầu <span className="small muted">· AC trong mô tả ↔ test case đã duyệt (theo cột Ref)</span>
+          </span>
+          {can(actor, "ai.run") && (
+            <form action={aiCoverageAction}>
+              {hidden}
+              <SubmitButton className="btn ai sm" pendingText="AI đang đối chiếu…">
+                AI kiểm tra độ phủ
+              </SubmitButton>
+            </form>
+          )}
+        </h2>
+        {matrix.length === 0 ? (
+          <p className="small muted">Mô tả không có dòng dạng “AC-1: …” nên chưa lập được ma trận. Dùng nút AI kiểm tra độ phủ để AI tự đọc requirement.</p>
+        ) : (
+          <div className="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>AC</th>
+                  <th>Nội dung</th>
+                  <th>Test case</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matrix.map((m) => (
+                  <tr key={m.code}>
+                    <td className="key">{m.code}</td>
+                    <td className="small">{m.text}</td>
+                    <td className="small">{m.tcs.length ? <span className="cov-ok">✓ {m.tcs.join(", ")}</span> : <span className="cov-miss">Chưa có TC ghi Ref {m.code}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {story.coverage && (
+          <>
+            <h3>
+              AI đánh giá · {story.coverage.model} · {fmtDateTime(story.coverage.at)}
+            </h3>
+            <div className="tbl-wrap">
+              <table>
+                <tbody>
+                  {story.coverage.items.map((it, i) => (
+                    <tr key={i}>
+                      <td style={{ width: 110 }}>
+                        <span className={`pill ${it.status === "covered" ? "p-pass" : it.status === "partial" ? "p-block" : "p-fail"}`}>
+                          {it.status === "covered" ? "Đủ" : it.status === "partial" ? "Chưa đủ" : "Thiếu"}
+                        </span>
+                      </td>
+                      <td className="small">
+                        {it.requirement}
+                        {it.note && <div className="muted">{it.note}</div>}
+                      </td>
+                      <td className="small">{it.coveredBy.join(", ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {story.coverage.suggestions.length > 0 && can(actor, "tc.edit") && (
+              <form action={addCoverageSuggestionsAction} className="inline">
+                {hidden}
+                <span className="small">
+                  AI gợi ý {story.coverage.suggestions.length} test case cho chỗ còn thiếu: {story.coverage.suggestions.map((x) => x.title).slice(0, 3).join("; ")}
+                  {story.coverage.suggestions.length > 3 ? "…" : ""}
+                </span>
+                <SubmitButton className="btn sm pri">Thêm thành nháp</SubmitButton>
+              </form>
+            )}
+          </>
+        )}
       </div>
 
       <div className="card" id="testcases">

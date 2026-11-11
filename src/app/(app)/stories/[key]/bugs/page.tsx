@@ -1,6 +1,7 @@
 import { can } from "@/lib/rbac";
 import { loadStoryPage } from "@/lib/storyPage";
 import { listBugs, evidenceOf, bugCode, SEVERITY_LABEL, BUG_STATUS_LABEL } from "@/lib/services/bugs";
+import { similarBugs } from "@/lib/services/similar";
 import { ENV_LABEL } from "@/lib/services/execution";
 import { fmtDateTime } from "@/lib/format";
 import { Flash } from "@/components/Flash";
@@ -24,7 +25,7 @@ const STATUS_CLASS: Record<BugStatus, string> = { draft: "p-ai", open: "p-fail",
 export default async function BugsPage({ params, searchParams }: PageProps<"/stories/[key]/bugs">) {
   const { key } = await params;
   const sp = await searchParams;
-  const { db, data, role, actor, allowed } = await loadStoryPage(key);
+  const { db, user, data, role, actor, allowed, owner } = await loadStoryPage(key);
   const { story, project } = data;
   if (!allowed) return <div className="flash err">Bạn không thuộc dự án {project.key}.</div>;
   const canEdit = can(actor, "tc.edit");
@@ -33,6 +34,7 @@ export default async function BugsPage({ params, searchParams }: PageProps<"/sto
   const ev = await evidenceOf(db, "bug", ids);
   const fixEv = await evidenceOf(db, "bug_fix", ids);
   const editing = list.find((b) => b.id === sp.edit && b.status === "draft");
+  const dupes = editing ? await similarBugs(db, editing.id) : [];
   const drafts = list.filter((b) => b.status === "draft" && b.id !== editing?.id);
   const live = list.filter((b) => b.status !== "draft");
   const kh = (
@@ -43,7 +45,7 @@ export default async function BugsPage({ params, searchParams }: PageProps<"/sto
 
   return (
     <>
-      <StoryHeader story={story} role={role} tab="/bugs" />
+      <StoryHeader story={story} role={role} tab="/bugs" owner={owner} meId={user.id} />
       <Flash ok={sp.ok} err={sp.err} />
       <div className="sh">
         <p className="small muted">
@@ -64,6 +66,19 @@ export default async function BugsPage({ params, searchParams }: PageProps<"/sto
           <h2>
             Nháp bug <span className="pill p-ai">{editing.source === "ai" ? "AI viết" : editing.source === "agent" ? "Antigravity viết" : "Nháp"}</span>
           </h2>
+          {dupes.length > 0 && (
+            <div className="flash err" role="status" style={{ flexDirection: "column", gap: 4 }}>
+              <b>Có thể trùng với bug đã có, kiểm tra trước khi tạo:</b>
+              {dupes.map((d) => (
+                <span key={d.id} className="small">
+                  <a className="key" href={`/stories/${d.storyKey}/bugs#b-${d.id}`}>
+                    {d.code}
+                  </a>{" "}
+                  {d.title} · {d.storyKey} · giống {Math.round(d.score * 100)}%
+                </span>
+              ))}
+            </div>
+          )}
           <form action={saveBugDraftAction} className="form">
             {kh}
             <input type="hidden" name="bugId" value={editing.id} />

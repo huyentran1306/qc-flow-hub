@@ -7,6 +7,7 @@ import { setExecution } from "../services/execution";
 import { addEvidenceBuffer } from "../services/bugs";
 import { readAccounts, type TestAccount } from "../services/testAccounts";
 import { audit } from "../audit";
+import { notifyUsers } from "../services/notifications";
 import { tcCode } from "../format";
 import { launchBrowser } from "./browser";
 import { collectSnapshot } from "./snapshot";
@@ -194,41 +195,65 @@ export async function sweepInterrupted(db: DB) {
 
 export type StartOptions = { buildId: string; userId: string; headed: boolean; rerun: boolean; origin: string; onlyIds?: string[] };
 
-export async function startAutoRun(db: DB, ai: AiClient, o: StartOptions): Promise<string> {
-  await sweepInterrupted(db);
-  if (live().size) throw new Error("Đang có một lượt chạy tự động khác. Chờ xong hoặc huỷ lượt đó trước.");
+type RunCtx = { baseUrl: string; acc?: TestAccount; userId: string; headed: boolean; label: string; link: string; silent?: boolean };
+type Target = { e: typeof executions.$inferSelect; tc: typeof testCases.$inferSelect };
+export type RunCounts = { done: number; passed: number; failed: number; blocked: number };
+
+/** Creates the auto_runs row for a build and works out what to run. Does not start anything. */
+export async function prepareRun(db: DB, o: StartOptions & { suiteRunId?: string; silent?: boolean }) {
   const [b] = await db.select().from(builds).where(eq(builds.id, o.buildId));
   const [s] = await db.select().from(stories).where(eq(stories.id, b.storyId));
   const [p] = await db.select().from(projects).where(eq(projects.id, s.projectId));
   const envUrl = p.envUrls[b.env];
   if (!envUrl) throw new Error(`Dự án ${p.key} chưa có URL môi trường ${b.env.toUpperCase()}. Vào Quản trị → Dự án để nhập.`);
   const rows = await db.select({ e: executions, tc: testCases }).from(executions).innerJoin(testCases, eq(testCases.id, executions.testCaseId)).where(eq(executions.buildId, o.buildId));
-  const targets = rows
+  const targets: Target[] = rows
     .filter((r) => (o.onlyIds ? o.onlyIds.includes(r.e.id) : o.rerun ? r.e.status !== "passed" : r.e.status === "not_run"))
     .sort((a, z) => a.tc.seq - z.tc.seq);
   if (!targets.length) throw new Error(o.rerun ? "Mọi test case trong build đã Passed." : "Không còn test case nào chưa chạy. Chọn “Chạy lại cả Failed/Blocked” nếu muốn.");
-  const [run] = await db.insert(autoRuns).values({ buildId: o.buildId, status: "queued", total: targets.length, startedBy: o.userId, options: { headed: o.headed, rerun: o.rerun } }).returning();
-  live().set(run.id, true);
-  const baseUrl = envUrl.startsWith("/") ? o.origin.replace(/\/+$/, "") + envUrl : envUrl;
-  const acc = readAccounts(p.testAccountsEnc)[b.env];
-  await audit(db, { userId: o.userId, action: `Bắt đầu chạy tự động ${targets.length} TC`, target: `${s.jiraKey} ${b.name}` });
-  void processRun(db, ai, run.id, targets, { baseUrl, acc, userId: o.userId, headed: o.headed, label: `${s.jiraKey} ${b.name}` })
-    .catch(async (e) => {
-      await db.update(autoRuns).set({ status: "failed", error: (e as Error).message, finishedAt: new Date() }).where(eq(autoRuns.id, run.id));
-    })
-    .finally(() => live().delete(run.id));
-  return run.id;
+  const [run] = await db
+    .insert(autoRuns)
+    .values({ buildId: o.buildId, status: "queued", total: targets.length, startedBy: o.userId, options: { headed: o.headed, rerun: o.rerun }, suiteRunId: o.suiteRunId ?? null })
+    .returning();
+  const ctx: RunCtx = {
+    baseUrl: envUrl.startsWith("/") ? o.origin.replace(/\/+$/, "") + envUrl : envUrl,
+    acc: readAccounts(p.testAccountsEnc)[b.env],
+    userId: o.userId,
+    headed: o.headed,
+    label: `${s.jiraKey} ${b.name}`,
+    link: `/stories/${s.jiraKey}/run?build=${b.id}`,
+    silent: o.silent,
+  };
+  return { runId: run.id, targets, ctx };
 }
 
-async function processRun(
-  db: DB,
-  ai: AiClient,
-  runId: string,
-  targets: { e: typeof executions.$inferSelect; tc: typeof testCases.$inferSelect }[],
-  ctx: { baseUrl: string; acc?: TestAccount; userId: string; headed: boolean; label: string },
-) {
+export function isBusy() {
+  return live().size > 0;
+}
+export function holdSlot(id: string) {
+  live().set(id, true);
+}
+export function releaseSlot(id: string) {
+  live().delete(id);
+}
+
+export async function startAutoRun(db: DB, ai: AiClient, o: StartOptions): Promise<string> {
+  await sweepInterrupted(db);
+  if (isBusy()) throw new Error("Đang có một lượt chạy tự động khác. Chờ xong hoặc huỷ lượt đó trước.");
+  const { runId, targets, ctx } = await prepareRun(db, o);
+  holdSlot(runId);
+  await audit(db, { userId: o.userId, action: `Bắt đầu chạy tự động ${targets.length} TC`, target: ctx.label });
+  void processRun(db, ai, runId, targets, ctx)
+    .catch(async (e) => {
+      await db.update(autoRuns).set({ status: "failed", error: (e as Error).message, finishedAt: new Date() }).where(eq(autoRuns.id, runId));
+    })
+    .finally(() => releaseSlot(runId));
+  return runId;
+}
+
+export async function processRun(db: DB, ai: AiClient, runId: string, targets: Target[], ctx: RunCtx): Promise<RunCounts> {
   const log: string[] = [];
-  const counts = { done: 0, passed: 0, failed: 0, blocked: 0 };
+  const counts: RunCounts = { done: 0, passed: 0, failed: 0, blocked: 0 };
   const push = async (line: string, extra: Partial<typeof autoRuns.$inferInsert> = {}) => {
     log.push(`${new Date().toLocaleTimeString("vi-VN", { hour12: false, timeZone: "Asia/Ho_Chi_Minh" })} ${line}`);
     await db.update(autoRuns).set({ log: log.slice(-200), ...counts, ...extra }).where(eq(autoRuns.id, runId));
@@ -240,7 +265,7 @@ async function processRun(
       const [now] = await db.select({ status: autoRuns.status }).from(autoRuns).where(eq(autoRuns.id, runId));
       if (now?.status === "cancelled") {
         await push("Đã huỷ theo yêu cầu.");
-        return;
+        return counts;
       }
       const code = tcCode(tc.seq);
       await push(`▶ ${code} ${tc.title}${tc.kind === "api" ? " (API)" : ""}`, { current: `${code} ${tc.title}` });
@@ -263,6 +288,8 @@ async function processRun(
     }
     await push(`Xong: ${counts.passed} passed, ${counts.failed} failed, ${counts.blocked} blocked. Kết quả chờ QC duyệt.`, { status: "done", current: null, finishedAt: new Date() });
     await audit(db, { userId: ctx.userId, action: `Chạy tự động xong: ${counts.passed}/${counts.done} passed`, target: ctx.label });
+    if (!ctx.silent) await notifyUsers(db, [ctx.userId], { kind: "auto_run", title: `Chạy tự động ${ctx.label} xong: ${counts.passed}/${counts.done} passed`, body: counts.failed + counts.blocked ? `${counts.failed} failed, ${counts.blocked} blocked, chờ bạn duyệt` : "Chờ bạn duyệt kết quả", link: ctx.link });
+    return counts;
   } finally {
     await browser?.close().catch(() => undefined);
   }

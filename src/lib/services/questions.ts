@@ -2,6 +2,7 @@ import { and, eq, isNotNull, ne } from "drizzle-orm";
 import type { DB } from "../db";
 import { questions, stories } from "../db/schema";
 import { audit } from "../audit";
+import { notifyUsers } from "./notifications";
 import type { JiraClient } from "../integrations/jira";
 
 /** Short code put in the Jira comment so BA/PO replies can be matched to the question. */
@@ -78,6 +79,7 @@ export async function syncQnaReplies(db: DB, jira: JiraClient, storyId: string):
     const f = found.get(q.id);
     if (!f || q.jiraReplyId === f.id) continue;
     await db.update(questions).set({ jiraReply: f.body, jiraReplyAuthor: f.author, jiraReplyId: f.id }).where(eq(questions.id, q.id));
+    await notifyUsers(db, [q.createdBy], { kind: "qna_reply", title: `${f.author || "BA/PO"} đã trả lời câu hỏi ở ${s.jiraKey}`, body: f.body.slice(0, 200), link: `/stories/${s.jiraKey}#qna` });
     n++;
   }
   if (n) await audit(db, { userId: null, action: `Tìm thấy ${n} câu trả lời Q&A trên Jira`, target: s.jiraKey, source: "system" });

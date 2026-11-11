@@ -36,7 +36,7 @@ function Bar({ label, c }: { label: string; c: C }) {
 export default async function ReportsPage({ params, searchParams }: PageProps<"/stories/[key]/reports">) {
   const { key } = await params;
   const sp = await searchParams;
-  const { db, data, role, actor, allowed } = await loadStoryPage(key);
+  const { db, user, data, role, actor, allowed, owner } = await loadStoryPage(key);
   const { story, project } = data;
   if (!allowed) return <div className="flash err">Bạn không thuộc dự án {project.key}.</div>;
   const canEdit = can(actor, "tc.edit");
@@ -52,7 +52,7 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
 
   return (
     <>
-      <StoryHeader story={story} role={role} tab="/reports" />
+      <StoryHeader story={story} role={role} tab="/reports" owner={owner} meId={user.id} />
       <Flash ok={sp.ok} err={sp.err} />
       {!b ? (
         <div className="empty">Chưa có build nào. Tạo build ở tab Thực thi trước.</div>

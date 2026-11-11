@@ -27,7 +27,7 @@ const STATUS_LABEL: Record<ExecStatus, string> = { passed: "Passed", failed: "Fa
 export default async function RunPage({ params, searchParams }: PageProps<"/stories/[key]/run">) {
   const { key } = await params;
   const sp = await searchParams;
-  const { db, user, data, role, actor, allowed } = await loadStoryPage(key);
+  const { db, user, data, role, actor, allowed, owner } = await loadStoryPage(key);
   const { story, project, testCases } = data;
   if (!allowed) return <div className="flash err">Bạn không thuộc dự án {project.key}.</div>;
   const conns = await listConnections(db);
@@ -71,7 +71,7 @@ Không đóng bug, không sửa dữ liệu ngoài phạm vi test case.`
 
   return (
     <>
-      <StoryHeader story={story} role={role} tab="/run" />
+      <StoryHeader story={story} role={role} tab="/run" owner={owner} meId={user.id} />
       <Flash ok={sp.ok} err={sp.err} />
 
       {all.length > 0 && (

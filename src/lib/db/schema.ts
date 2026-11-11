@@ -117,6 +117,13 @@ export type QaStage = "analyzing" | "qna" | "tc_ready" | "testing" | "done";
 
 export type JiraSubtask = { key: string; summary: string; status: string; issueType: string; labels: string[] };
 
+export type StoryCoverage = {
+  items: { requirement: string; coveredBy: string[]; status: "covered" | "partial" | "missing"; note: string }[];
+  suggestions: { us: string; title: string; type: TcType; kind: TcKind; priority: TcPriority; preconditions: string; steps: TcStep[] }[];
+  model: string;
+  at: string;
+};
+
 export type StoryAnalysis = {
   testPoints: string[];
   dependencies: string[];
@@ -140,6 +147,7 @@ export const stories = pgTable(
     currentEnv: text("current_env").$type<Env>().notNull().default("dev"),
     qcOwnerId: text("qc_owner_id").references(() => users.id, { onDelete: "set null" }),
     analysis: jsonb("analysis").$type<StoryAnalysis>(),
+    coverage: jsonb("coverage").$type<StoryCoverage>(),
     syncedAt: timestamp("synced_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
@@ -209,14 +217,17 @@ export const builds = pgTable(
     id: id(),
     storyId: text("story_id").notNull().references(() => stories.id, { onDelete: "cascade" }),
     env: text("env").$type<Env>().notNull(),
+    // "round": the story's normal DEV/STG/PROD rounds. "regression": created by a regression suite run,
+    // kept out of the story's gate and cumulative results.
+    kind: text("kind").$type<"round" | "regression">().notNull().default("round"),
     round: integer("round").notNull(),
-    name: text("name").notNull(), // DEV-R1, STG-R2, PROD-SMOKE
+    name: text("name").notNull(), // DEV-R1, STG-R2, PROD-SMOKE, REG-…
     testlinkPlanId: text("testlink_plan_id"),
     testlinkBuildId: text("testlink_build_id"),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("builds_story_env_round").on(t.storyId, t.env, t.round)],
+  (t) => [uniqueIndex("builds_story_env_kind_round").on(t.storyId, t.env, t.kind, t.round)],
 );
 
 export type ExecStatus = "passed" | "failed" | "blocked" | "not_run";
@@ -262,6 +273,7 @@ export const bugs = pgTable("bugs", {
   source: text("source").$type<"manual" | "ai" | "agent">().notNull().default("manual"),
   createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
   closedBy: text("closed_by").references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   closedAt: timestamp("closed_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
@@ -315,8 +327,72 @@ export const autoRuns = pgTable("auto_runs", {
   error: text("error"),
   options: jsonb("options").$type<{ headed: boolean; rerun: boolean }>().notNull().default({ headed: false, rerun: false }),
   startedBy: text("started_by").references(() => users.id, { onDelete: "set null" }),
+  suiteRunId: text("suite_run_id"),
   startedAt: createdAt(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
+export type SuiteSchedule = { mode: "off" | "daily" | "weekdays"; time: string }; // time "HH:MM", Asia/Ho_Chi_Minh
+
+export const regressionSuites = pgTable("regression_suites", {
+  id: id(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  env: text("env").$type<Env>().notNull().default("stg"),
+  description: text("description").notNull().default(""),
+  schedule: jsonb("schedule").$type<SuiteSchedule>().notNull().default({ mode: "off", time: "02:00" }),
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
+export const suiteCases = pgTable(
+  "suite_cases",
+  {
+    suiteId: text("suite_id").notNull().references(() => regressionSuites.id, { onDelete: "cascade" }),
+    testCaseId: text("test_case_id").notNull().references(() => testCases.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.suiteId, t.testCaseId] })],
+);
+
+export const suiteRuns = pgTable("suite_runs", {
+  id: id(),
+  suiteId: text("suite_id").notNull().references(() => regressionSuites.id, { onDelete: "cascade" }),
+  status: text("status").$type<AutoRunStatus>().notNull().default("queued"),
+  trigger: text("trigger").$type<"manual" | "schedule">().notNull().default("manual"),
+  buildIds: jsonb("build_ids").$type<string[]>().notNull().default([]),
+  total: integer("total").notNull().default(0),
+  passed: integer("passed").notNull().default(0),
+  failed: integer("failed").notNull().default(0),
+  blocked: integer("blocked").notNull().default(0),
+  error: text("error"),
+  startedBy: text("started_by").references(() => users.id, { onDelete: "set null" }),
+  startedAt: createdAt(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // bug_resolved, qna_reply, ai_draft, gate, auto_run, regression, assigned
+    title: text("title").notNull(),
+    body: text("body"),
+    link: text("link"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("notifications_user").on(t.userId, t.createdAt)],
+);
+
+export const aiAnswers = pgTable("ai_answers", {
+  id: id(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  createdAt: createdAt(),
 });
 
 /** HTTP calls observed or made while running a test case: the "API result" of the case. */

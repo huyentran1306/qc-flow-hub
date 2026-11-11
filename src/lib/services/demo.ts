@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { DB } from "../db";
 import { bugs, builds, executions, memberships, projects, questions, sprints, stories, testCases, userStories, type TcPriority, type TcType } from "../db/schema";
 import { audit } from "../audit";
+import { createSuite, setSuiteCases } from "./regression";
 
 const DEMO_STORIES = [
   {
@@ -60,7 +61,7 @@ export async function seedDemo(db: DB, userId: string): Promise<string> {
   const now = new Date();
   const [sp] = await db
     .insert(sprints)
-    .values({ projectId: p.id, jiraId: 42, name: "Sprint 42 (mẫu)", state: "active", startDate: now, endDate: new Date(now.getTime() + 11 * 864e5) })
+    .values({ projectId: p.id, jiraId: 42, name: "Sprint 42 (mẫu)", state: "active", startDate: new Date(now.getTime() - 5 * 864e5), endDate: new Date(now.getTime() + 6 * 864e5) })
     .onConflictDoUpdate({ target: [sprints.projectId, sprints.jiraId], set: { state: "active" } })
     .returning();
   for (const s of DEMO_STORIES) {
@@ -92,6 +93,9 @@ const MAPDECK_TCS: DemoTc[] = [
   ["US2", "negative", "medium", "API xoá Map deck không tồn tại trả 404", "", [["DELETE /demo-app/api/mapdecks/khong-ton-tai", "HTTP 404 kèm thông báo lỗi “không tồn tại”"]], "api"],
 ];
 
+// Which acceptance criterion (or Q&A answer) each sample test case covers, for the coverage matrix.
+const DEMO_REFS = ["AC-1", "AC-2", "AC-3", "AC-3", "AC-4", "AC-5", "AC-6", "AC-6", "Q2", "AC-7", "AC-8", null, "AC-3", null];
+
 /** Sample run for DEMO-110859: approved test cases, a finished DEV round 1 with failures, blockers and bugs. */
 async function seedMapDeckRun(db: DB, userId: string) {
   const [s] = await db.select().from(stories).where(eq(stories.jiraKey, "DEMO-110859"));
@@ -109,7 +113,7 @@ async function seedMapDeckRun(db: DB, userId: string) {
   ]);
   const tcs = await db
     .insert(testCases)
-    .values(MAPDECK_TCS.map(([us, type, priority, title, pre, steps, kind], i) => ({ storyId: s.id, seq: i + 1, usCode: us, type, kind: kind ?? "ui", priority, title, preconditions: pre, steps: steps.map(([action, expected]) => ({ action, expected })), source: "ai" as const, status: "approved" as const, createdBy: userId, approvedBy: userId })))
+    .values(MAPDECK_TCS.map(([us, type, priority, title, pre, steps, kind], i) => ({ storyId: s.id, seq: i + 1, usCode: us, type, kind: kind ?? "ui", priority, title, preconditions: pre, steps: steps.map(([action, expected]) => ({ action, expected })), requirementRef: DEMO_REFS[i] ?? null, source: "ai" as const, status: "approved" as const, createdBy: userId, approvedBy: userId })))
     .returning();
   const [b] = await db.insert(builds).values({ storyId: s.id, env: "dev", round: 1, name: "DEV-R1", createdBy: userId }).returning();
   const result: Record<number, ["passed" | "failed" | "blocked" | "not_run", string | null, string]> = {
@@ -122,24 +126,29 @@ async function seedMapDeckRun(db: DB, userId: string) {
     14: ["not_run", null, ""],
   };
   const now = new Date();
+  const daysAgo = (n: number, h = 10) => new Date(now.getTime() - n * 86400_000 - h * 3600_000 + 10 * 3600_000);
   const execs = await db
     .insert(executions)
     .values(tcs.map((t) => {
       const [status, key, notes] = result[t.seq] ?? ["passed", null, ""];
-      return { buildId: b.id, testCaseId: t.id, status, linkedIssueKey: key, notes, executedBy: status === "not_run" ? null : userId, executedAt: status === "not_run" ? null : now };
+      // Spread over the last days so the dashboard trend and burn-up have a real shape.
+      return { buildId: b.id, testCaseId: t.id, status, linkedIssueKey: key, notes, executedBy: status === "not_run" ? null : userId, executedAt: status === "not_run" ? null : daysAgo([4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0][t.seq - 1] ?? 0) };
     }))
     .returning();
   const execOf = (seq: number) => execs.find((e) => e.testCaseId === tcs.find((t) => t.seq === seq)!.id)!;
   const [bug1] = await db
     .insert(bugs)
-    .values({ storyId: s.id, executionId: execOf(3).id, title: "[MapDeck][US1] Tìm kiếm phân biệt hoa thường", steps: "1. Mở danh sách Map deck\n2. Nhập “hanoi” vào ô tìm kiếm", actual: "Không có kết quả", expected: "Có “Hanoi Traffic”", severity: "major", env: "dev", status: "resolved", jiraStatus: "Resolved", source: "ai", createdBy: userId, fixCommits: [{ sha: "a3f9c21e7b", message: "DEMO fix search ilike", author: "Tuấn" }] })
+    .values({ storyId: s.id, executionId: execOf(3).id, title: "[MapDeck][US1] Tìm kiếm phân biệt hoa thường", steps: "1. Mở danh sách Map deck\n2. Nhập “hanoi” vào ô tìm kiếm", actual: "Không có kết quả", expected: "Có “Hanoi Traffic”", severity: "major", env: "dev", status: "resolved", jiraStatus: "Resolved", source: "ai", createdBy: userId, createdAt: daysAgo(3), resolvedAt: daysAgo(1), fixCommits: [{ sha: "a3f9c21e7b", message: "DEMO fix search ilike", author: "Tuấn" }] })
     .returning();
   const [bug2] = await db
     .insert(bugs)
-    .values({ storyId: s.id, executionId: execOf(9).id, title: "[MapDeck][US2] Không cảnh báo khi xoá deck đang chia sẻ", steps: "1. Chọn deck đang chia sẻ cho 3 user\n2. Bấm Xoá", actual: "Popup xác nhận chung, không có cảnh báo", expected: "Popup cảnh báo “đang được chia sẻ với 3 người” (Q2)", severity: "major", env: "dev", status: "in_progress", jiraStatus: "In Progress", source: "manual", createdBy: userId })
+    .values({ storyId: s.id, executionId: execOf(9).id, title: "[MapDeck][US2] Không cảnh báo khi xoá deck đang chia sẻ", steps: "1. Chọn deck đang chia sẻ cho 3 user\n2. Bấm Xoá", actual: "Popup xác nhận chung, không có cảnh báo", expected: "Popup cảnh báo “đang được chia sẻ với 3 người” (Q2)", severity: "major", env: "dev", status: "in_progress", jiraStatus: "In Progress", source: "manual", createdBy: userId, createdAt: daysAgo(1) })
     .returning();
   const code = (id: string) => `LOCAL-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
   await db.update(executions).set({ linkedIssueKey: code(bug1.id) }).where(eq(executions.id, execOf(3).id));
   await db.update(executions).set({ linkedIssueKey: code(bug2.id) }).where(eq(executions.id, execOf(9).id));
-  await db.update(stories).set({ qaStage: "testing", currentEnv: "dev" }).where(eq(stories.id, s.id));
+  await db.update(stories).set({ qaStage: "testing", currentEnv: "dev", qcOwnerId: userId }).where(eq(stories.id, s.id));
+  // A ready-made regression suite with the happy cases, to try "Chạy ngay" on the sample app.
+  const suiteId = await createSuite(db, userId, s.projectId, { name: "Smoke DEMO", env: "dev", description: "Happy case của MapDeck, chạy trên ứng dụng mẫu" });
+  await setSuiteCases(db, userId, suiteId, tcs.filter((t) => t.type === "happy").map((t) => t.id));
 }

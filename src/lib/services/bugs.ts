@@ -7,6 +7,7 @@ import type { AiClient } from "../integrations/gemini";
 import type { JiraClient } from "../integrations/jira";
 import { readUpload, safeMime, saveUpload } from "../storage";
 import { notify } from "./notify";
+import { notifyUsers, projectMemberIds } from "./notifications";
 import { ENV_LABEL } from "./execution";
 import { tcCode } from "../format";
 
@@ -232,9 +233,13 @@ export async function applyJiraStatus(db: DB, jiraKey: string, statusName: strin
   const [p] = await db.select().from(projects).where(eq(projects.id, s.projectId));
   const next = mapJiraStatus(statusName, p.bugStatusMap);
   if (b.jiraStatus === statusName && b.status === next) return false;
-  await db.update(bugs).set({ jiraStatus: statusName, status: next, ...(next === "closed" && !b.closedAt ? { closedAt: new Date() } : {}) }).where(eq(bugs.id, b.id));
+  await db
+    .update(bugs)
+    .set({ jiraStatus: statusName, status: next, ...(next === "closed" && !b.closedAt ? { closedAt: new Date() } : {}), ...(next === "resolved" && !b.resolvedAt ? { resolvedAt: new Date() } : {}) })
+    .where(eq(bugs.id, b.id));
   if (next === "resolved" && b.status !== "resolved") {
     await notify(db, `🔧 ${jiraKey} đã được dev chuyển ${statusName}, cần QC verify: ${b.title}`);
+    await notifyUsers(db, [b.createdBy, ...(await projectMemberIds(db, p.id, ["lead", "qc"]))], { kind: "bug_resolved", title: `${jiraKey} chờ QC verify`, body: b.title, link: `/stories/${s.jiraKey}/bugs#b-${b.id}` });
     await audit(db, { userId: null, action: "Bug chờ QC verify", target: jiraKey, source: "system" });
   }
   return true;
@@ -276,7 +281,7 @@ export async function verifyAndClose(db: DB, jira: JiraClient | null, bugId: str
     if (!moved) throw new Error(`Đã comment và đính kèm, nhưng không tìm thấy transition sang ${p.bugStatusMap.closed.join("/")} trên Jira. Kiểm tra ánh xạ trạng thái ở Quản trị → Dự án.`);
     jiraStatus = moved;
   }
-  await db.update(bugs).set({ status: "closed", jiraStatus, closedBy: userId, closedAt: new Date() }).where(eq(bugs.id, bugId));
+  await db.update(bugs).set({ status: "closed", jiraStatus, closedBy: userId, closedAt: new Date(), resolvedAt: b.resolvedAt ?? new Date() }).where(eq(bugs.id, bugId));
   await audit(db, { userId, action: "Verify và đóng bug", target: bugCode(b) });
 }
 

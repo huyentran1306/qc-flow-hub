@@ -5,6 +5,7 @@ import { NavLink } from "@/components/NavLink";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/app/actions/auth";
+import { Bell } from "@/components/Bell";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -30,9 +31,24 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </span>
         </Link>
         <div className="grp">Làm việc</div>
+        {ctx.project && can(actor, "story.view") && (
+          <NavLink href="/dashboard" icon="layers">
+            Dashboard
+          </NavLink>
+        )}
+        {ctx.project && can(actor, "story.view") && (
+          <NavLink href="/my-work" icon="check">
+            Việc của tôi
+          </NavLink>
+        )}
         <NavLink href="/board" icon="board">
           Sprint board
         </NavLink>
+        {ctx.project && can(actor, "story.view") && (
+          <NavLink href="/regression" icon="refresh">
+            Regression
+          </NavLink>
+        )}
         {ctx.project && can(actor, "story.view") && (
           <NavLink href="/bugs" icon="bug">
             Sub-bug
@@ -76,6 +92,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <div className="main">
         <header className="topbar">
           {ctx.available.length ? <ProjectSwitcher current={ctx.project?.key ?? null} options={ctx.available} /> : <span className="small muted">Chưa có dự án nào</span>}
+          <div className="topbar-right">
+          <Bell userId={user.id} />
           <details className="usermenu">
             <summary>
               <span className="avatar" aria-hidden="true">
@@ -98,6 +116,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </form>
             </div>
           </details>
+          </div>
         </header>
         <main className="page">{children}</main>
       </div>

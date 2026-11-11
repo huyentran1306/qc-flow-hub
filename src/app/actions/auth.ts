@@ -13,7 +13,7 @@ export async function loginAction(fd: FormData) {
   if (!u) redirect(withFlash("/login", { err: "Email hoặc mật khẩu không đúng." }));
   await startSession(u.id);
   await audit(db, { userId: u.id, action: "Đăng nhập" });
-  redirect("/board");
+  redirect("/dashboard");
 }
 
 export async function setupAction(fd: FormData) {

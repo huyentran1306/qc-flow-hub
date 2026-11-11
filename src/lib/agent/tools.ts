@@ -9,6 +9,7 @@ import { currentSprint, boardStories } from "../services/stories";
 import { setExecution, buildRows, ENV_LABEL } from "../services/execution";
 import { addEvidence, bugCode, createDraftBug } from "../services/bugs";
 import { tcCode } from "../format";
+import { notifyUsers, projectMemberIds } from "../services/notifications";
 
 export type AgentAuth = { user: { id: string; isAdmin: boolean; name: string }; scope: "read" | "write" };
 
@@ -133,6 +134,7 @@ export const TOOLS: Tool[] = [
         return out;
       });
       await audit(db, { userId: auth.user.id, action: `Agent đề xuất ${rows.length} test case`, target: s.jiraKey, source: "mcp" });
+      if (rows.length) await notifyUsers(db, await projectMemberIds(db, s.projectId, ["lead", "qc"]), { kind: "ai_draft", title: `Antigravity đề xuất ${rows.length} test case cho ${s.jiraKey}`, link: `/stories/${s.jiraKey}#testcases` }, auth.user.id);
       return { created: rows.length, note: "Đang chờ QC duyệt trong tool." };
     },
   },
@@ -144,7 +146,7 @@ export const TOOLS: Tool[] = [
     async run(db, auth, args) {
       const s = await storyFor(db, auth, str(args.storyKey, "storyKey"), "story.view");
       const env = (["dev", "stg", "prod"].includes(String(args.env)) ? args.env : s.currentEnv) as Env;
-      const [b] = await db.select().from(builds).where(and(eq(builds.storyId, s.id), eq(builds.env, env))).orderBy(desc(builds.round)).limit(1);
+      const [b] = await db.select().from(builds).where(and(eq(builds.storyId, s.id), eq(builds.env, env), eq(builds.kind, "round"))).orderBy(desc(builds.round)).limit(1);
       if (!b) return { message: `Chưa có build nào ở ${ENV_LABEL[env]}. QC cần tạo build trong tool trước.` };
       const [p] = await db.select().from(projects).where(eq(projects.id, s.projectId));
       const rows = await buildRows(db, b.id);
@@ -234,6 +236,7 @@ export const TOOLS: Tool[] = [
         source: "agent",
         fields: { title: str(args.title, "title"), steps: String(args.steps ?? ""), actual: String(args.actual ?? ""), expected: String(args.expected ?? ""), severity, env: row.b.env },
       });
+      await notifyUsers(db, await projectMemberIds(db, row.s.projectId, ["lead", "qc"]), { kind: "ai_draft", title: `Antigravity tạo nháp bug: ${String(args.title).slice(0, 120)}`, link: `/stories/${row.s.jiraKey}/bugs?edit=${id}#edit` }, auth.user.id);
       return { draftBug: bugCode({ id, jiraKey: null }), note: "Nháp đang chờ QC duyệt trong tool. Có thể gọi upload_evidence với bugKey này." };
     },
   },

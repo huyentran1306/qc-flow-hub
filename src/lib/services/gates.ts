@@ -5,6 +5,7 @@ import { audit } from "../audit";
 import type { JiraClient } from "../integrations/jira";
 import { createNextBuild, envScope, latestResults, ENV_LABEL } from "./execution";
 import { notify } from "./notify";
+import { notifyUsers, projectMemberIds } from "./notifications";
 
 export const NEXT_ENV: Record<Env, Env | "done"> = { dev: "stg", stg: "prod", prod: "done" };
 export const NEXT_LABEL: Record<Env, string> = { dev: "Staging", stg: "Production", prod: "Hoàn tất" };
@@ -25,7 +26,7 @@ export async function evaluateGate(db: DB, storyId: string) {
   const rate = scope.length ? Math.round((passed / scope.length) * 100) : 0;
   const open = await db.select().from(bugs).where(and(eq(bugs.storyId, storyId), inArray(bugs.status, ["open", "in_progress", "resolved"])));
   const bySev = (sv: string) => open.filter((b) => b.severity === sv).length;
-  const [lastBuild] = await db.select().from(builds).where(and(eq(builds.storyId, storyId), eq(builds.env, env))).orderBy(desc(builds.round)).limit(1);
+  const [lastBuild] = await db.select().from(builds).where(and(eq(builds.storyId, storyId), eq(builds.env, env), eq(builds.kind, "round"))).orderBy(desc(builds.round)).limit(1);
   const [rep] = lastBuild ? await db.select().from(reports).where(eq(reports.buildId, lastBuild.id)) : [];
 
   const checks: GateCheck[] = [
@@ -69,6 +70,7 @@ export async function advanceStory(db: DB, jira: JiraClient | null, storyId: str
   if (failed.length) message += `\nVượt gate, lý do: ${overrideReason}`;
   if (jira && !g.project.isDemo) await jira.addComment(s.jiraKey, message).catch((e) => console.error("[gate comment]", e));
   await notify(db, message);
+  await notifyUsers(db, await projectMemberIds(db, g.project.id, ["lead", "qc", "dev"]), { kind: "gate", title: message.split("\n")[0].slice(0, 200), link: `/stories/${s.jiraKey}/env` }, userId);
   await audit(db, {
     userId,
     action: failed.length ? `Vượt gate ${ENV_LABEL[g.env]} → ${NEXT_LABEL[g.env]}` : `Qua gate ${ENV_LABEL[g.env]} → ${NEXT_LABEL[g.env]}`,

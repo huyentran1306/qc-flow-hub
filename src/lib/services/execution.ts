@@ -28,7 +28,7 @@ export async function latestResults(db: DB, storyId: string, env: Env): Promise<
     .select({ e: executions, b: builds })
     .from(executions)
     .innerJoin(builds, eq(builds.id, executions.buildId))
-    .where(and(eq(builds.storyId, storyId), eq(builds.env, env)))
+    .where(and(eq(builds.storyId, storyId), eq(builds.env, env), eq(builds.kind, "round")))
     .orderBy(asc(builds.round));
   const out = new Map<string, Latest>();
   for (const { e, b } of rows) {
@@ -44,7 +44,7 @@ export async function createNextBuild(db: DB, storyId: string, env: Env, userId:
   const all = await db.select().from(testCases).where(eq(testCases.storyId, storyId)).orderBy(asc(testCases.seq));
   const scope = envScope(all, env);
   if (!scope.length) throw new Error(env === "prod" ? "Chưa có test case Happy nào được duyệt cho bộ smoke PROD." : "Chưa có test case nào được duyệt.");
-  const [{ m }] = await db.select({ m: max(builds.round) }).from(builds).where(and(eq(builds.storyId, storyId), eq(builds.env, env)));
+  const [{ m }] = await db.select({ m: max(builds.round) }).from(builds).where(and(eq(builds.storyId, storyId), eq(builds.env, env), eq(builds.kind, "round")));
   const round = Number(m ?? 0) + 1;
   let picked = scope;
   if (round > 1) {
